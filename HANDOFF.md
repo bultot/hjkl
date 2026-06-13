@@ -46,9 +46,13 @@ HJKL_PROVIDER=<id> <app-binary>` renders a sheet to PNG (no window). Live overla
    `sips` to all sizes (16..512 @1x/@2x), write Contents.json into
    App/Assets.xcassets/AppIcon.appiconset, ensure project.yml/asset catalog picks it
    up (may need an Assets.xcassets in App/ + ASSETCATALOG settings), rebuild.
-3. TODO — Global `/` search across ALL providers (not just current tab): `/` opens a
-   search matching shortcuts across every enabled sheet, grouped by app, keyboard
-   selectable. Currently `/` filters only the active sheet (in CheatSheetView).
+3. DONE — Global `/` search across ALL providers. CheatCore.searchSheets(_:query:)
+   matches action + keys + app name across every enabled sheet, grouped by app
+   (8 unit tests). `/` opens search mode in CheatSheetView: grouped flat-row results
+   (SearchResultsView/SearchGroupCardView in Components.swift), ↑/↓ navigate every
+   hit, ⏎ jumps to the matched app's tab and scrolls to the shortcut, esc clears
+   then exits. Per-tab filter removed (filteredSections gone). Render dev tool:
+   HJKL_SEARCH="focus" alongside HJKL_RENDER.
 4. TODO — Owner verify live: `open build/Build/Products/Debug/hjkl.app` → ⌘⌥⌃/ and
    hold-⌥. Confirm panel shows + floats + transition + process-aware switching.
 

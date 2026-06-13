@@ -7,6 +7,9 @@ import CheatCore
 struct RenderHarness: View {
     let model: AppModel
 
+    /// Global-search mode when a query is set (via HJKL_SEARCH), else browse mode.
+    private var searching: Bool { !model.filter.trimmingCharacters(in: .whitespaces).isEmpty }
+
     var body: some View {
         let p = model.palette
         let sheet = model.selectedSheet
@@ -14,12 +17,15 @@ struct RenderHarness: View {
             // header
             VStack(spacing: 10) {
                 HStack(spacing: 8) {
-                    Image(systemName: sheet?.symbol ?? "keyboard").foregroundStyle(p.accent)
-                    Text(sheet?.title ?? "hjkl").font(.title3.weight(.semibold)).foregroundStyle(p.textPrimary)
+                    Image(systemName: searching ? "magnifyingglass" : (sheet?.symbol ?? "keyboard")).foregroundStyle(p.accent)
+                    Text(searching ? "Search" : (sheet?.title ?? "hjkl")).font(.title3.weight(.semibold)).foregroundStyle(p.textPrimary)
+                    if searching {
+                        Text("\(model.searchHitCount) across \(model.searchGroups.count)").font(.caption).foregroundStyle(p.textSecondary)
+                    }
                     Spacer()
                     HStack(spacing: 6) {
                         Image(systemName: "magnifyingglass").font(.caption).foregroundStyle(p.textSecondary)
-                        Text("Filter (/)").font(.callout).foregroundStyle(p.textSecondary)
+                        Text(searching ? model.filter : "Search all apps (/)").font(.callout).foregroundStyle(p.textSecondary)
                     }
                     .padding(.horizontal, 10).padding(.vertical, 6)
                     .background(p.surface, in: Capsule())
@@ -44,11 +50,16 @@ struct RenderHarness: View {
 
             Divider().overlay(p.divider)
 
-            SheetColumnsView(
-                sections: sheet?.sections ?? [], palette: p,
-                columns: columnCount(for: sheet?.sections ?? [])
-            )
-            .padding(18)
+            if searching {
+                SearchResultsView(groups: model.searchGroups, palette: p)
+                    .padding(18)
+            } else {
+                SheetColumnsView(
+                    sections: sheet?.sections ?? [], palette: p,
+                    columns: columnCount(for: sheet?.sections ?? [])
+                )
+                .padding(18)
+            }
 
             Spacer(minLength: 0)
         }

@@ -1,23 +1,46 @@
 import SwiftUI
 import CheatCore
 
-/// The overlay content: app tabs, a live filter, and the selected provider's
-/// shortcut sections. Fully keyboard-driven (vim keys).
+/// The overlay content: app tabs and the selected provider's shortcuts when
+/// browsing; a global search across every enabled app when `/` is pressed.
+/// Fully keyboard-driven (vim keys + arrows).
 struct CheatSheetView: View {
     @Bindable var model: AppModel
     let onClose: () -> Void
 
     @State private var selection: Int = 0
+    /// When set, the next selectedID/filter change targets this row instead of
+    /// resetting to 0 (used when Enter jumps from a search hit into its app).
+    @State private var pendingTarget: String? = nil
     @FocusState private var searchFocused: Bool
 
+    private var isSearching: Bool { searchFocused }
     private var sheet: ShortcutSheet? { model.selectedSheet }
-    private var sections: [CheatCore.Section] { sheet.map { model.filteredSections($0) } ?? [] }
 
-    /// Flattened (sectionIndex, shortcut) pairs for j/k navigation.
-    private var flat: [(sid: String, shortcut: Shortcut)] {
-        sections.flatMap { s in s.shortcuts.map { (s.id, $0) } }
+    // Browse mode: the selected sheet's full sections.
+    private var browseSections: [CheatCore.Section] { sheet?.sections ?? [] }
+    private var browseFlat: [(sid: String, sc: Shortcut)] {
+        browseSections.flatMap { s in s.shortcuts.map { (s.id, $0) } }
     }
+
+    // Search mode: matches across all enabled sheets, grouped by app.
+    private var searchGroups: [SearchGroup] { model.searchGroups }
+    private var searchFlat: [SearchHit] { searchGroups.flatMap { $0.hits } }
+
+    private var navCount: Int { isSearching ? searchFlat.count : browseFlat.count }
+
     private func rowID(_ sid: String, _ sc: Shortcut) -> String { sid + "\u{1}" + sc.id }
+
+    private var selectedBrowseRowID: String? {
+        guard browseFlat.indices.contains(selection) else { return nil }
+        let f = browseFlat[selection]
+        return rowID(f.sid, f.sc)
+    }
+    private var selectedHitID: String? {
+        guard searchFlat.indices.contains(selection) else { return nil }
+        return searchFlat[selection].id
+    }
+    private var scrollTargetID: String? { isSearching ? selectedHitID : selectedBrowseRowID }
 
     var body: some View {
         let p = model.palette
@@ -38,8 +61,19 @@ struct CheatSheetView: View {
         .focusable()
         .focusEffectDisabled()
         .onKeyPress(phases: .down) { handleKey($0, palette: p) }
-        .onChange(of: model.selectedID) { selection = 0 }
-        .onChange(of: model.filter) { selection = 0 }
+        .onChange(of: model.selectedID) { applyPendingOrReset() }
+        .onChange(of: model.filter) { applyPendingOrReset() }
+    }
+
+    /// Resolve a pending jump target to its row index, otherwise reset selection.
+    private func applyPendingOrReset() {
+        if let t = pendingTarget,
+           let idx = browseFlat.firstIndex(where: { rowID($0.sid, $0.sc) == t }) {
+            selection = idx
+            pendingTarget = nil
+        } else if pendingTarget == nil {
+            selection = 0
+        }
     }
 
     // MARK: header
@@ -47,10 +81,14 @@ struct CheatSheetView: View {
     @ViewBuilder private func header(_ p: Palette) -> some View {
         VStack(spacing: 10) {
             HStack(spacing: 8) {
-                Image(systemName: sheet?.symbol ?? "keyboard")
+                Image(systemName: isSearching ? "magnifyingglass" : (sheet?.symbol ?? "keyboard"))
                     .foregroundStyle(p.accent)
-                Text(sheet?.title ?? "hjkl")
+                Text(isSearching ? "Search" : (sheet?.title ?? "hjkl"))
                     .font(.title3.weight(.semibold))
+                if isSearching, !model.filter.isEmpty {
+                    Text("\(model.searchHitCount) across \(searchGroups.count)")
+                        .font(.caption).foregroundStyle(p.textSecondary)
+                }
                 Spacer()
                 searchField(p)
             }
@@ -64,20 +102,21 @@ struct CheatSheetView: View {
     @ViewBuilder private func searchField(_ p: Palette) -> some View {
         HStack(spacing: 6) {
             Image(systemName: "magnifyingglass").font(.caption).foregroundStyle(p.textSecondary)
-            TextField("Filter (/)", text: $model.filter)
+            TextField("Search all apps (/)", text: $model.filter)
                 .textFieldStyle(.plain)
-                .frame(width: 180)
+                .frame(width: 220)
                 .focused($searchFocused)
-                .onSubmit { searchFocused = false }
+                .onSubmit { jumpToSelectedHit() }
         }
         .padding(.horizontal, 10).padding(.vertical, 6)
         .background(p.surface, in: Capsule())
+        .overlay(Capsule().strokeBorder(isSearching ? p.accent.opacity(0.5) : .clear))
     }
 
     @ViewBuilder private func tabBar(_ p: Palette) -> some View {
         HStack(spacing: 6) {
             ForEach(Array(model.sheets.enumerated()), id: \.element.id) { idx, s in
-                let active = s.id == model.selectedID
+                let active = !isSearching && s.id == model.selectedID
                 HStack(spacing: 5) {
                     Image(systemName: s.symbol ?? "keyboard").font(.caption2)
                     Text(s.title).font(.callout.weight(active ? .semibold : .regular))
@@ -88,7 +127,7 @@ struct CheatSheetView: View {
                 .background(active ? p.accent.opacity(0.22) : p.surface, in: Capsule())
                 .overlay(Capsule().strokeBorder(active ? p.accent.opacity(0.5) : .clear))
                 .contentShape(Capsule())
-                .onTapGesture { model.selectTab(index: idx) }
+                .onTapGesture { searchFocused = false; model.selectTab(index: idx) }
             }
             Spacer()
         }
@@ -96,42 +135,64 @@ struct CheatSheetView: View {
 
     // MARK: content
 
-    private var selectedRowID: String? {
-        guard flat.indices.contains(selection) else { return nil }
-        let f = flat[selection]
-        return rowID(f.sid, f.shortcut)
-    }
-
     @ViewBuilder private func content(_ p: Palette) -> some View {
         ScrollViewReader { proxy in
             ScrollView {
-                if sections.isEmpty {
-                    Text(model.filter.isEmpty ? "No shortcuts." : "No matches for “\(model.filter)”.")
-                        .foregroundStyle(p.textSecondary)
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 60)
+                if isSearching {
+                    searchContent(p)
                 } else {
-                    SheetColumnsView(
-                        sections: sections, palette: p,
-                        columns: columnCount(for: sections), selectedRowID: selectedRowID
-                    )
-                    .padding(18)
+                    browseContent(p)
                 }
             }
             .onChange(of: selection) {
-                guard let rid = selectedRowID else { return }
+                guard let rid = scrollTargetID else { return }
                 withAnimation(.easeOut(duration: 0.12)) { proxy.scrollTo(rid, anchor: .center) }
             }
         }
+    }
+
+    @ViewBuilder private func searchContent(_ p: Palette) -> some View {
+        if model.filter.trimmingCharacters(in: .whitespaces).isEmpty {
+            placeholder("Type to search \(model.sheets.count) apps…", p)
+        } else if searchGroups.isEmpty {
+            placeholder("No matches for “\(model.filter)”.", p)
+        } else {
+            SearchResultsView(groups: searchGroups, palette: p, selectedHitID: selectedHitID)
+                .padding(18)
+        }
+    }
+
+    @ViewBuilder private func browseContent(_ p: Palette) -> some View {
+        if browseSections.isEmpty {
+            placeholder("No shortcuts.", p)
+        } else {
+            SheetColumnsView(
+                sections: browseSections, palette: p,
+                columns: columnCount(for: browseSections), selectedRowID: selectedBrowseRowID
+            )
+            .padding(18)
+        }
+    }
+
+    @ViewBuilder private func placeholder(_ text: String, _ p: Palette) -> some View {
+        Text(text)
+            .foregroundStyle(p.textSecondary)
+            .frame(maxWidth: .infinity)
+            .padding(.top, 60)
     }
 
     // MARK: footer
 
     @ViewBuilder private func footer(_ p: Palette) -> some View {
         HStack(spacing: 14) {
-            hint("h l", "tabs", p); hint("j k", "move", p); hint("/", "filter", p); hint("esc", "close", p)
+            if isSearching {
+                hint("↑ ↓", "move", p); hint("⏎", "open", p); hint("esc", "back", p)
+            } else {
+                hint("h l", "tabs", p); hint("j k", "move", p); hint("/", "search", p); hint("esc", "close", p)
+            }
             Spacer()
-            Text("\(sheet?.count ?? 0) shortcuts").font(.caption2).foregroundStyle(p.textSecondary)
+            Text(isSearching ? "\(model.searchHitCount) matches" : "\(sheet?.count ?? 0) shortcuts")
+                .font(.caption2).foregroundStyle(p.textSecondary)
         }
         .padding(.horizontal, 18).padding(.vertical, 9)
         .background(p.surface.opacity(0.5))
@@ -147,13 +208,18 @@ struct CheatSheetView: View {
     // MARK: keyboard
 
     private func handleKey(_ press: KeyPress, palette p: Palette) -> KeyPress.Result {
-        // While typing in the filter, let the field handle everything except esc.
+        // While the search field has focus, intercept only navigation; typing
+        // (and everything else) falls through to the TextField.
         if searchFocused {
-            if press.key == .escape {
-                if model.filter.isEmpty { searchFocused = false } else { model.filter = "" }
+            switch press.key {
+            case .escape:
+                if model.filter.isEmpty { exitSearch() } else { model.filter = "" }
                 return .handled
+            case .upArrow: move(-1); return .handled
+            case .downArrow: move(1); return .handled
+            case .return: jumpToSelectedHit(); return .handled
+            default: return .ignored
             }
-            return .ignored
         }
 
         switch press.key {
@@ -173,13 +239,13 @@ struct CheatSheetView: View {
 
         switch press.characters {
         case "q": onClose(); return .handled
-        case "/": searchFocused = true; return .handled
+        case "/": enterSearch(); return .handled
         case "h": model.selectNextTab(-1); return .handled
         case "l": model.selectNextTab(1); return .handled
         case "j": move(1); return .handled
         case "k": move(-1); return .handled
-        case "g": selection = 0; scrollFix(); return .handled
-        case "G": selection = max(0, flat.count - 1); return .handled
+        case "g": selection = 0; return .handled
+        case "G": selection = max(0, navCount - 1); return .handled
         case let s where s.count == 1 && s >= "1" && s <= "9":
             model.selectTab(index: Int(s)! - 1); return .handled
         default:
@@ -187,10 +253,30 @@ struct CheatSheetView: View {
         }
     }
 
-    private func move(_ delta: Int) {
-        guard !flat.isEmpty else { return }
-        selection = min(max(0, selection + delta), flat.count - 1)
+    private func enterSearch() {
+        pendingTarget = nil
+        selection = 0
+        searchFocused = true
     }
 
-    private func scrollFix() { /* selection change triggers scroll via onChange */ }
+    private func exitSearch() {
+        searchFocused = false
+        pendingTarget = nil
+        model.filter = ""
+        selection = 0
+    }
+
+    /// Enter on a search hit: switch to that app's tab and land on the shortcut.
+    private func jumpToSelectedHit() {
+        guard searchFlat.indices.contains(selection) else { return }
+        let hit = searchFlat[selection]
+        pendingTarget = rowID(hit.sectionTitle, hit.shortcut)
+        searchFocused = false
+        model.select(providerID: hit.sheetID)   // sets selectedID + clears filter → applyPendingOrReset
+    }
+
+    private func move(_ delta: Int) {
+        guard navCount > 0 else { return }
+        selection = min(max(0, selection + delta), navCount - 1)
+    }
 }
