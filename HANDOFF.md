@@ -35,28 +35,27 @@ HJKL_PROVIDER=<id> <app-binary>` renders a sheet to PNG (no window). Live overla
   wired (set CODE_SIGN_ENTITLEMENTS in project.yml when adding a real one).
 
 ## Remaining work
-1. Process-aware terminal context (the killer feature). When frontmost app ==
-   com.cmuxterm.app, detect the FOCUSED pane's foreground process and switch the
-   tab to lazygit/neovim/claude-code/zsh, else cmux.
-   - cmux CLI (path: /Applications/cmux.app/Contents/Resources/bin/cmux, or env
-     CMUX_BUNDLED_CLI_PATH): `cmux top --json` returns `active.surface_ref` (the
-     focused surface) and `coding_agents[]` (e.g. id "claude" with pids). Use
-     `cmux top --json --processes` to get per-surface process trees → find the
-     active surface's foreground command. Map: lazygit→lazygit, nvim/vim→neovim,
-     claude→claude-code, zsh/bash/-zsh→zsh, else cmux.
-   - Add a ContextResolver in the app that shells out to the cmux CLI (only when
-     frontmost is cmux), parses JSON, returns a provider id; call it from
-     OverlayController.show() / ContextMonitor before selecting the tab.
-   - Logic is testable from inside cmux (run the cmux commands); the panel display
-     still needs the owner's live session.
-2. Wire AppIconView → AppIcon.appiconset: add an HJKL_RENDER_ICON=path mode that
-   renders AppIconView to 1024 PNG, then `sips` to all sizes + write Contents.json,
-   set in project.yml. Then rebuild.
-3. Global `/` search across ALL providers (not just the current tab): `/` opens a
-   search that matches shortcuts across every enabled sheet, grouped by app, with
-   keyboard selection. Currently `/` filters only the active sheet.
-4. Owner to verify live: `open build/Build/Products/Debug/hjkl.app` → ⌘⌥⌃/ and
-   hold-⌥. Confirm panel shows + floats + transition.
+1. DONE — Process-aware terminal context (commit fda1528). CheatCore.TerminalContext
+   parses `cmux top --json --processes` (active.surface_ref → surface node →
+   foreground_pgids → process `path`) and classifies lazygit/neovim/claude-code/zsh
+   (5 unit tests). App/ContextResolver.swift shells out to the cmux CLI (env
+   CMUX_BUNDLED_CLI_PATH or /Applications/cmux.app/.../bin/cmux); OverlayController.show()
+   uses it, falling back to bundle-id match. Live tab-switch needs owner's session.
+2. TODO — Wire App/AppIconView.swift → AppIcon.appiconset: add an
+   HJKL_RENDER_ICON=path mode in AppDelegate (ImageRenderer of AppIconView @1024),
+   `sips` to all sizes (16..512 @1x/@2x), write Contents.json into
+   App/Assets.xcassets/AppIcon.appiconset, ensure project.yml/asset catalog picks it
+   up (may need an Assets.xcassets in App/ + ASSETCATALOG settings), rebuild.
+3. TODO — Global `/` search across ALL providers (not just current tab): `/` opens a
+   search matching shortcuts across every enabled sheet, grouped by app, keyboard
+   selectable. Currently `/` filters only the active sheet (in CheatSheetView).
+4. TODO — Owner verify live: `open build/Build/Products/Debug/hjkl.app` → ⌘⌥⌃/ and
+   hold-⌥. Confirm panel shows + floats + transition + process-aware switching.
+
+## Tests / build snapshot
+43 tests / 12 suites green. App builds. Commits through fda1528 pushed to
+github.com/bultot/hjkl. 7 providers registered. Render dev tool:
+HJKL_RENDER=/tmp/x.png [HJKL_THEME=catppuccin-mocha] [HJKL_PROVIDER=neovim] <binary>.
 
 ## Key facts
 - No Developer ID identity installed yet (ad-hoc "-" signing for dev).
