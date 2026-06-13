@@ -46,6 +46,17 @@ struct CheatSheetView: View {
     }
     private var scrollTargetID: String? { isSearching ? selectedHitID : selectedBrowseRowID }
 
+    /// The opaque cheat-sheet card. The window is larger than this by
+    /// `shadowMargin` on every side so the Raycast-style soft shadow has room
+    /// to draw into transparent space instead of being clipped.
+    static let cardSize = CGSize(width: 1040, height: 640)
+    static let cornerRadius: CGFloat = 18
+    static let shadowMargin: CGFloat = 60
+    static var windowSize: CGSize {
+        CGSize(width: cardSize.width + shadowMargin * 2,
+               height: cardSize.height + shadowMargin * 2)
+    }
+
     var body: some View {
         let p = model.palette
         VStack(spacing: 0) {
@@ -54,13 +65,18 @@ struct CheatSheetView: View {
             content(p)
             footer(p)
         }
-        .frame(width: 1040, height: 640)
+        .frame(width: Self.cardSize.width, height: Self.cardSize.height)
         .background { p.background }
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous)
                 .strokeBorder(p.divider, lineWidth: 1)
         }
+        // Raycast-style soft drop shadow: a broad ambient layer plus a tighter
+        // contact layer for depth. Cast off the clipped rounded card.
+        .shadow(color: .black.opacity(0.34), radius: 36, x: 0, y: 22)
+        .shadow(color: .black.opacity(0.20), radius: 8, x: 0, y: 4)
+        .padding(Self.shadowMargin)
         .foregroundStyle(p.textPrimary)
         .focusable()
         .focused($focus, equals: .panel)

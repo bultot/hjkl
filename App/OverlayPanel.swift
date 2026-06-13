@@ -6,7 +6,7 @@ import SwiftUI
 final class OverlayPanel: NSPanel {
     init() {
         super.init(
-            contentRect: NSRect(x: 0, y: 0, width: 1040, height: 640),
+            contentRect: NSRect(origin: .zero, size: CheatSheetView.windowSize),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: true
@@ -16,7 +16,9 @@ final class OverlayPanel: NSPanel {
         isMovableByWindowBackground = true
         backgroundColor = .clear
         isOpaque = false
-        hasShadow = true
+        // The card draws its own soft shadow in SwiftUI (see CheatSheetView);
+        // the AppKit window shadow would clip to the transparent window bounds.
+        hasShadow = false
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         hidesOnDeactivate = false
         animationBehavior = .utilityWindow
@@ -73,7 +75,7 @@ final class OverlayController {
 
         isAnimatingOut = false
         panel.alphaValue = 1
-        panel.setFrame(centeredFrame(), display: false)
+        panel.setFrame(defaultFrame(), display: false)
 
         if activating {
             // Remember who to hand focus back to (ignore ourselves on re-toggle).
@@ -128,14 +130,21 @@ final class OverlayController {
         })
     }
 
-    private func centeredFrame() -> NSRect {
+    /// Horizontally centered; vertically biased toward the upper third to match
+    /// Raycast's default placement (window center ~40% from the top of the
+    /// screen, i.e. above true center). The window includes the shadow margin
+    /// symmetrically, so its center coincides with the card's center.
+    private func defaultFrame() -> NSRect {
         let screen = NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) }
             ?? NSScreen.main
         let visible = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
         let size = panel.frame.size
+        // AppKit y grows upward: 0.60 of the height up from the bottom puts the
+        // center at 40% from the top.
+        let centerY = visible.minY + visible.height * 0.60
         return NSRect(
             x: visible.midX - size.width / 2,
-            y: visible.midY - size.height / 2,
+            y: centerY - size.height / 2,
             width: size.width, height: size.height
         )
     }
