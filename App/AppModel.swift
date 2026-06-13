@@ -74,6 +74,15 @@ final class AppModel {
 
     var selectedSheet: ShortcutSheet? { sheets.first { $0.id == selectedID } }
 
+    func hasSheet(_ id: String) -> Bool { sheets.contains { $0.id == id } }
+
+    /// Select a specific provider tab if it has a sheet (used by process-aware context).
+    func select(providerID: String) {
+        guard hasSheet(providerID) else { return }
+        selectedID = providerID
+        filter = ""
+    }
+
     func selectForFrontmost(bundleID: String?) {
         guard let bundleID,
               let provider = registry.provider(forBundleID: bundleID),

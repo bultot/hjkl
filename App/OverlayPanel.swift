@@ -31,6 +31,7 @@ final class OverlayPanel: NSPanel {
 final class OverlayController {
     private let panel: OverlayPanel
     private let model: AppModel
+    private let resolver = ContextResolver()
 
     init(model: AppModel) {
         self.model = model
@@ -55,7 +56,13 @@ final class OverlayController {
     /// (hold-to-peek), shown without stealing focus. Animates in with a quick
     /// fade + subtle rise (skipped under Reduce Motion).
     func show(activating: Bool) {
-        model.selectForFrontmost(bundleID: NSWorkspace.shared.frontmostApplication?.bundleIdentifier)
+        let bundle = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+        // Process-aware: inside cmux, switch to the tool running in the focused pane.
+        if let pid = resolver.providerID(forFrontmostBundle: bundle), model.hasSheet(pid) {
+            model.select(providerID: pid)
+        } else {
+            model.selectForFrontmost(bundleID: bundle)
+        }
         isAnimatingOut = false
         panel.alphaValue = 0
 
