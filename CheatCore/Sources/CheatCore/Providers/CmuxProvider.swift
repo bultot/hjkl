@@ -65,12 +65,29 @@ public struct CmuxProvider: ShortcutProvider {
             guard let name = command["name"] as? String, !name.isEmpty else { continue }
             let description = command["description"] as? String
             let action = name + (description.map { " — \($0)" } ?? "")
-            shortcuts.append(Shortcut(keys: "palette", action: action, source: .custom))
+            shortcuts.append(Shortcut(keys: keys(for: command), action: action, source: .custom))
         }
 
         guard !shortcuts.isEmpty else { return nil }
         return Section(title: "Custom Commands", shortcuts: shortcuts)
     }
+
+    /// A command's own `shortcut` if it defines one, else the command-palette key.
+    /// cmux launches custom commands from the palette (⌘⇧P), so that is the
+    /// real keystroke to surface rather than a generic "palette" label.
+    private func keys(for command: [String: Any]) -> String {
+        if let combo = command["shortcut"] as? String, !combo.isEmpty {
+            return KeyFormatting.chord(fromCombo: combo)
+        }
+        if let chord = command["shortcut"] as? [String], !chord.isEmpty {
+            // A chorded binding (e.g. ["cmd+k", "c"]): format each stroke, join with a thin space.
+            return chord.map { KeyFormatting.chord(fromCombo: $0) }.joined(separator: " ")
+        }
+        return Self.commandPaletteKey
+    }
+
+    /// cmux default for the `commandPalette` action.
+    static let commandPaletteKey = "⌘⇧P"
 
     // MARK: - JSONC comment stripping
 
@@ -150,6 +167,15 @@ public struct CmuxProvider: ShortcutProvider {
             Shortcut(keys: "⌥⌘→", action: "Focus pane right"),
             Shortcut(keys: "⌘W", action: "Close tab"),
             Shortcut(keys: "⌘B", action: "Toggle sidebar"),
+        ]),
+        // Terminal helpers (~/.local/bin) for the worktree-agent workflow. These
+        // are shell commands, not cmux keybindings — the keys column shows what
+        // you type. Run from inside a cmux terminal in the project.
+        Section(title: "Worktree CLI", shortcuts: [
+            Shortcut(keys: "ccw-main", action: "Open the cockpit (Main layout) in the project group", essential: true, source: .custom),
+            Shortcut(keys: "ccw <proj> <name>", action: "Spawn an agent worktree (branch agent/<name>) in the group", essential: true, source: .custom),
+            Shortcut(keys: "ccw-done [name]", action: "Land agent/<name> into trunk, remove worktree, close tab", source: .custom),
+            Shortcut(keys: "ccw-purge [-f]", action: "List or remove merged/dead agent worktrees", source: .custom),
         ]),
     ]
 }
