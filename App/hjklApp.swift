@@ -8,7 +8,8 @@ struct HjklApp: App {
 
     var body: some Scene {
         MenuBarExtra("hjkl", systemImage: "keyboard") {
-            Button("Show Cheat Sheet") { delegate.showOverlay() }
+            Button("Show Cheat Sheet  (⌘⌥⌃/)") { delegate.showOverlay() }
+            Button("Enable Hold-to-Peek (⌥)…") { delegate.enableHoldToPeek() }
             Divider()
             Button("Reload Configs") { delegate.model.reload() }
             SettingsLink { Text("Settings…") }
@@ -28,6 +29,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let model = AppModel()
     private var controller: OverlayController?
     private var contextMonitor: ContextMonitor?
+    private var hotkeys: HotkeyManager?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Dev tool: HJKL_RENDER=/path.png renders the sheet to a PNG (no window)
@@ -37,21 +39,46 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSApp.terminate(nil)
             return
         }
+
+        let hk = HotkeyManager(
+            onToggle: { [weak self] in self?.toggleOverlay() },
+            onPeekStart: { [weak self] in self?.showOverlay(activating: false) },
+            onPeekEnd: { [weak self] in self?.hideOverlay() }
+        )
+        hk.start()
+        hotkeys = hk
+
         if ProcessInfo.processInfo.environment["HJKL_SHOW_ON_LAUNCH"] != nil {
             DispatchQueue.main.async { [self] in showOverlay() }
         }
     }
 
-    /// Lazily build the overlay + context monitor on first use, then show it.
-    /// (Building the panel during app/scene setup is unreliable; defer to first use.)
-    func showOverlay() {
-        if controller == nil {
-            controller = OverlayController(model: model)
-            let monitor = ContextMonitor(model: model)
-            monitor.start()
-            contextMonitor = monitor
-        }
-        controller?.show(activating: true)
+    /// Build the overlay + context monitor on first use (deferred; building the
+    /// panel during app/scene setup is unreliable).
+    private func ensureController() {
+        guard controller == nil else { return }
+        controller = OverlayController(model: model)
+        let monitor = ContextMonitor(model: model)
+        monitor.start()
+        contextMonitor = monitor
+    }
+
+    func showOverlay(activating: Bool = true) {
+        ensureController()
+        controller?.show(activating: activating)
+    }
+
+    func toggleOverlay() {
+        ensureController()
+        controller?.toggle()
+    }
+
+    func hideOverlay() {
+        controller?.hide()
+    }
+
+    func enableHoldToPeek() {
+        hotkeys?.ensureAccessibility(prompt: true)
     }
 
     @MainActor
