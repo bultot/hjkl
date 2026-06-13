@@ -35,5 +35,10 @@ public func allKnownProviders() -> [any ShortcutProvider] {
     [
         CmuxProvider(),
         AeroSpaceProvider(),
+        ClaudeCodeProvider(),
+        GhosttyProvider(),
+        LazygitProvider(),
+        NeovimProvider(),
+        ZshProvider(),
     ]
 }
