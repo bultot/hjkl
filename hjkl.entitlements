@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  hjkl is a non-sandboxed Developer ID menu-bar agent. It reads arbitrary
+  ~/.config files, so it must NOT be sandboxed and needs no file-access
+  entitlements. Hardened Runtime is enabled at build time via build settings,
+  not here. Accessibility and Input Monitoring are granted at runtime by the
+  user through TCC; they are not entitlements.
+
+  An empty dict is correct and intentional. Do not add
+  com.apple.security.cs.disable-library-validation unless a signed-but-foreign
+  dylib actually fails to load under Hardened Runtime.
+-->
+<plist version="1.0">
+<dict/>
+</plist>

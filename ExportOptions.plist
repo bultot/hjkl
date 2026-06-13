@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Template for `xcodebuild -exportArchive`. scripts/release.sh copies this to
+  build/ExportOptions.plist and replaces REPLACE_TEAM_ID with $TEAM_ID before
+  the export step. To run xcodebuild by hand, copy this file and set teamID
+  yourself. Keep method = developer-id (Developer ID distribution, not App Store).
+-->
+<plist version="1.0">
+<dict>
+	<key>method</key>
+	<string>developer-id</string>
+	<key>signingStyle</key>
+	<string>manual</string>
+	<key>teamID</key>
+	<string>REPLACE_TEAM_ID</string>
+	<key>signingCertificate</key>
+	<string>Developer ID Application</string>
+</dict>
+</plist>
