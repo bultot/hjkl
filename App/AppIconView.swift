@@ -18,9 +18,14 @@ struct AppIconView: View {
     private static let text = Color(red: 0xcd / 255, green: 0xd6 / 255, blue: 0xf4 / 255)     // #cdd6f4
     private static let crust = Color(red: 0x11 / 255, green: 0x11 / 255, blue: 0x1b / 255)    // #11111b
 
-    private let canvas: CGFloat = 1024
-    private let inset: CGFloat = 100        // tile is ~824×824 within the 1024 square
-    private let tileRadius: CGFloat = 180
+    /// Logical edge of the square the icon is drawn into. Defaults to the 1024
+    /// design size; the icon integrator passes the target pixel size so SwiftUI
+    /// lays out (and rasterizes text/blur) natively at each appiconset resolution
+    /// instead of downsampling a single 1024 master. All metrics below are
+    /// fractions of `canvas`, so the 1024 render stays pixel-identical.
+    var canvas: CGFloat = 1024
+    private var inset: CGFloat { canvas * (100.0 / 1024.0) }   // tile is ~824×824 within the square
+    private var tileRadius: CGFloat { canvas * (180.0 / 1024.0) }
 
     var body: some View {
         let tile = canvas - inset * 2
@@ -34,7 +39,7 @@ struct AppIconView: View {
                 .overlay(keycaps(tile: tile))
                 .overlay(rimHighlight)
                 .clipShape(RoundedRectangle(cornerRadius: tileRadius, style: .continuous))
-                .shadow(color: Self.crust.opacity(0.55), radius: 48, x: 0, y: 28)
+                .shadow(color: Self.crust.opacity(0.55), radius: canvas * (48.0 / 1024.0), x: 0, y: canvas * (28.0 / 1024.0))
         }
         .frame(width: canvas, height: canvas)
     }
@@ -56,7 +61,7 @@ struct AppIconView: View {
                     colors: [Self.mauve.opacity(0.30), .clear],
                     center: .center,
                     startRadius: 0,
-                    endRadius: 520
+                    endRadius: canvas * (520.0 / 1024.0)
                 )
             )
     }
@@ -70,7 +75,7 @@ struct AppIconView: View {
                     startPoint: .top,
                     endPoint: .bottom
                 ),
-                lineWidth: 6
+                lineWidth: canvas * (6.0 / 1024.0)
             )
     }
 

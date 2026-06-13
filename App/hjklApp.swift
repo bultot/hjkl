@@ -40,6 +40,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
+        // Dev tool: HJKL_RENDER_ICON=/dir renders AppIconView natively at each
+        // appiconset pixel size (16…1024) into that directory, then exits.
+        // Used by scripts/gen-icon.sh to build the AppIcon.appiconset.
+        if let dir = ProcessInfo.processInfo.environment["HJKL_RENDER_ICON"] {
+            renderAppIcons(toDir: dir)
+            NSApp.terminate(nil)
+            return
+        }
+
         let hk = HotkeyManager(
             onToggle: { [weak self] in self?.toggleOverlay() },
             onPeekStart: { [weak self] in self?.showOverlay(activating: false) },
@@ -94,5 +103,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
               let rep = NSBitmapImageRep(data: tiff),
               let png = rep.representation(using: .png, properties: [:]) else { return }
         try? png.write(to: URL(fileURLWithPath: path))
+    }
+
+    /// Render the app icon natively at each unique appiconset pixel size and
+    /// write `icon_<px>.png` into `dir`. scale 1 + a per-size canvas means
+    /// SwiftUI lays out and rasterizes each resolution on its own (crisp small
+    /// icons) rather than downsampling one 1024 master.
+    @MainActor
+    private func renderAppIcons(toDir dir: String) {
+        let sizes: [CGFloat] = [16, 32, 64, 128, 256, 512, 1024]
+        try? FileManager.default.createDirectory(
+            atPath: dir, withIntermediateDirectories: true)
+        for px in sizes {
+            let renderer = ImageRenderer(content: AppIconView(canvas: px))
+            renderer.scale = 1
+            guard let img = renderer.nsImage,
+                  let tiff = img.tiffRepresentation,
+                  let rep = NSBitmapImageRep(data: tiff),
+                  let png = rep.representation(using: .png, properties: [:]) else { continue }
+            let path = (dir as NSString).appendingPathComponent("icon_\(Int(px)).png")
+            try? png.write(to: URL(fileURLWithPath: path))
+        }
     }
 }
