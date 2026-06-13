@@ -44,16 +44,15 @@ struct RenderHarness: View {
 
             Divider().overlay(p.divider)
 
-            VStack(alignment: .leading, spacing: 18) {
-                ForEach(sheet?.sections ?? []) { section in
-                    SectionCardView(section: section, palette: p)
-                }
-            }
+            SheetColumnsView(
+                sections: sheet?.sections ?? [], palette: p,
+                columns: columnCount(for: sheet?.sections ?? [])
+            )
             .padding(18)
 
             Spacer(minLength: 0)
         }
-        .frame(width: 760)
+        .frame(width: 1040)
         .background { p.background }
     }
 }

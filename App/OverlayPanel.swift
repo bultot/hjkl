@@ -6,7 +6,7 @@ import SwiftUI
 final class OverlayPanel: NSPanel {
     init() {
         super.init(
-            contentRect: NSRect(x: 0, y: 0, width: 760, height: 560),
+            contentRect: NSRect(x: 0, y: 0, width: 1040, height: 640),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: true

@@ -27,7 +27,7 @@ struct CheatSheetView: View {
             content(p)
             footer(p)
         }
-        .frame(width: 760, height: 560)
+        .frame(width: 1040, height: 640)
         .background { p.background }
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay {
@@ -105,18 +105,18 @@ struct CheatSheetView: View {
     @ViewBuilder private func content(_ p: Palette) -> some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 18) {
-                    if sections.isEmpty {
-                        Text(model.filter.isEmpty ? "No shortcuts." : "No matches for “\(model.filter)”.")
-                            .foregroundStyle(p.textSecondary)
-                            .padding(.top, 40)
-                    } else {
-                        ForEach(sections) { section in
-                            SectionCardView(section: section, palette: p, selectedRowID: selectedRowID)
-                        }
-                    }
+                if sections.isEmpty {
+                    Text(model.filter.isEmpty ? "No shortcuts." : "No matches for “\(model.filter)”.")
+                        .foregroundStyle(p.textSecondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 60)
+                } else {
+                    SheetColumnsView(
+                        sections: sections, palette: p,
+                        columns: columnCount(for: sections), selectedRowID: selectedRowID
+                    )
+                    .padding(18)
                 }
-                .padding(18)
             }
             .onChange(of: selection) {
                 guard let rid = selectedRowID else { return }

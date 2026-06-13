@@ -4,6 +4,48 @@ import CheatCore
 /// Stable row id for selection/scroll targeting.
 func rowID(_ sectionID: String, _ sc: Shortcut) -> String { sectionID + "\u{1}" + sc.id }
 
+/// Distribute sections into `count` height-balanced columns (greedy: each section
+/// goes to the currently-shortest column). Keeps the grid visually even.
+func balancedColumns(_ sections: [CheatCore.Section], _ count: Int) -> [[CheatCore.Section]] {
+    guard count > 1 else { return [sections] }
+    var cols = Array(repeating: [CheatCore.Section](), count: count)
+    var heights = Array(repeating: 0, count: count)
+    for s in sections {
+        let i = heights.indices.min(by: { heights[$0] < heights[$1] }) ?? 0
+        cols[i].append(s)
+        heights[i] += s.shortcuts.count + 2   // +2 weights the title + card chrome
+    }
+    return cols
+}
+
+/// Multi-column grid of section cards that fills the available width.
+struct SheetColumnsView: View {
+    let sections: [CheatCore.Section]
+    let palette: Palette
+    var columns: Int = 3
+    var selectedRowID: String? = nil
+
+    var body: some View {
+        let cols = balancedColumns(sections, columns)
+        HStack(alignment: .top, spacing: 18) {
+            ForEach(Array(cols.enumerated()), id: \.offset) { _, colSections in
+                VStack(alignment: .leading, spacing: 16) {
+                    ForEach(colSections) { s in
+                        SectionCardView(section: s, palette: palette, selectedRowID: selectedRowID)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .frame(maxWidth: .infinity, alignment: .top)
+            }
+        }
+    }
+}
+
+/// Column count for a given section count (1–3), so sparse sheets don't over-split.
+func columnCount(for sections: [CheatCore.Section]) -> Int {
+    min(3, max(1, sections.count))
+}
+
 /// A single key-combo chip.
 struct KeyCapView: View {
     let keys: String
