@@ -22,12 +22,12 @@ struct SettingsTests {
         #expect(ids.contains("aerospace"))
     }
 
-    @Test("themeID defaults to system")
+    @Test("defaults: Catppuccin Mocha theme, hold-to-peek off, toggle on")
     func themeDefault() {
         let store = SettingsStore(directory: tempDir())
         store.load()
-        #expect(store.settings.themeID == "system")
-        #expect(store.settings.holdToPeekEnabled == true)
+        #expect(store.settings.themeID == "catppuccin-mocha")
+        #expect(store.settings.holdToPeekEnabled == false)
         #expect(store.settings.toggleEnabled == true)
     }
 

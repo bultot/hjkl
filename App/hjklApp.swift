@@ -9,7 +9,6 @@ struct HjklApp: App {
     var body: some Scene {
         MenuBarExtra("hjkl", systemImage: "keyboard") {
             Button("Show Cheat Sheet  (⌘⌥⌃/)") { delegate.showOverlay() }
-            Button("Enable Hold-to-Peek (⌥)…") { delegate.enableHoldToPeek() }
             Divider()
             Button("Reload Configs") { delegate.model.reload() }
             SettingsLink { Text("Settings…") }
@@ -19,7 +18,7 @@ struct HjklApp: App {
         }
 
         Settings {
-            SettingsView(model: delegate.model, onEnableHoldToPeek: { delegate.enableHoldToPeek() })
+            SettingsView(model: delegate.model, onSetHoldToPeek: { delegate.setHoldToPeek($0) })
         }
     }
 }
@@ -55,6 +54,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             onPeekEnd: { [weak self] in self?.hideOverlay() }
         )
         hk.start()
+        hk.setPeekEnabled(model.holdToPeekEnabled)
         hotkeys = hk
 
         if ProcessInfo.processInfo.environment["HJKL_SHOW_ON_LAUNCH"] != nil {
@@ -86,8 +86,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         controller?.hide()
     }
 
-    func enableHoldToPeek() {
-        hotkeys?.ensureAccessibility(prompt: true)
+    func setHoldToPeek(_ on: Bool) {
+        model.setHoldToPeek(on)
+        if on { hotkeys?.ensureAccessibility(prompt: true) }
+        hotkeys?.setPeekEnabled(on)
     }
 
     @MainActor

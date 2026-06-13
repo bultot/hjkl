@@ -17,7 +17,7 @@ final class OverlayPanel: NSPanel {
         backgroundColor = .clear
         isOpaque = false
         hasShadow = true
-        collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .moveToActiveSpace]
+        collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         hidesOnDeactivate = false
         animationBehavior = .utilityWindow
     }
@@ -37,13 +37,15 @@ final class OverlayController {
         self.model = model
         self.panel = OverlayPanel()
         let hosting = NSHostingView(
-            rootView: CheatSheetView(model: model) { [weak panel] in panel?.orderOut(nil) }
+            rootView: CheatSheetView(model: model) { [weak self] in self?.hide() }
         )
         hosting.sizingOptions = []
         panel.contentView = hosting
     }
 
     private var isAnimatingOut = false
+    /// App that was frontmost before we activated, so we can hand focus back on hide.
+    private var previousApp: NSRunningApplication?
 
     var isVisible: Bool { panel.isVisible && !isAnimatingOut }
 
@@ -56,7 +58,15 @@ final class OverlayController {
     /// (hold-to-peek), shown without stealing focus. Animates in with a quick
     /// fade + subtle rise (skipped under Reduce Motion).
     func show(activating: Bool) {
-        let bundle = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+        // Match the panel's appearance to the theme so AppKit-backed controls
+        // (e.g. the search field's editor) draw readable text. System theme
+        // follows the OS (nil appearance).
+        panel.appearance = model.theme.usesSystemMaterials
+            ? nil
+            : NSAppearance(named: model.theme.isDark ? .darkAqua : .aqua)
+
+        let front = NSWorkspace.shared.frontmostApplication
+        let bundle = front?.bundleIdentifier
         // Process-aware: inside cmux, switch to the tool running in the focused pane.
         if let pid = resolver.providerID(forFrontmostBundle: bundle), model.hasSheet(pid) {
             model.select(providerID: pid)
@@ -71,6 +81,10 @@ final class OverlayController {
         panel.setFrame(reduce ? target : target.offsetBy(dx: 0, dy: -10), display: false)
 
         if activating {
+            // Remember who to hand focus back to (ignore ourselves on re-toggle).
+            if front?.bundleIdentifier != Bundle.main.bundleIdentifier {
+                previousApp = front
+            }
             NSApp.activate(ignoringOtherApps: true)
             panel.makeKeyAndOrderFront(nil)
         } else {
@@ -101,6 +115,9 @@ final class OverlayController {
             panel.orderOut(nil)
             panel.alphaValue = 1
             isAnimatingOut = false
+            // Hand focus back to whoever had it before we activated.
+            previousApp?.activate()
+            previousApp = nil
         })
     }
 

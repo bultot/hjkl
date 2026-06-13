@@ -4,7 +4,7 @@ import KeyboardShortcuts
 
 struct SettingsView: View {
     @Bindable var model: AppModel
-    var onEnableHoldToPeek: () -> Void = {}
+    var onSetHoldToPeek: (Bool) -> Void = { _ in }
 
     var body: some View {
         TabView {
@@ -62,10 +62,11 @@ struct SettingsView: View {
             }
             Section("Hotkeys") {
                 KeyboardShortcuts.Recorder("Toggle cheat sheet", name: .toggleCheatSheet)
-                LabeledContent("Hold-to-peek") {
-                    Button("Enable (Accessibility)…", action: onEnableHoldToPeek)
-                }
-                Text("Hold ⌥ to peek; release to dismiss. Needs Accessibility permission.")
+                Toggle("Hold ⌥ to peek", isOn: Binding(
+                    get: { model.holdToPeekEnabled },
+                    set: { onSetHoldToPeek($0) }
+                ))
+                Text("When on, hold ⌥ to peek and release to dismiss. Needs Accessibility permission. Off by default so ⌥ stays free for other shortcuts.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section {

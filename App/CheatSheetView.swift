@@ -12,9 +12,13 @@ struct CheatSheetView: View {
     /// When set, the next selectedID/filter change targets this row instead of
     /// resetting to 0 (used when Enter jumps from a search hit into its app).
     @State private var pendingTarget: String? = nil
-    @FocusState private var searchFocused: Bool
 
-    private var isSearching: Bool { searchFocused }
+    /// Where keyboard focus lives. Kept on exactly one of these so the panel's
+    /// key handler keeps working after the search field is dismissed.
+    private enum Field: Hashable { case panel, search }
+    @FocusState private var focus: Field?
+
+    private var isSearching: Bool { focus == .search }
     private var sheet: ShortcutSheet? { model.selectedSheet }
 
     // Browse mode: the selected sheet's full sections.
@@ -59,10 +63,12 @@ struct CheatSheetView: View {
         }
         .foregroundStyle(p.textPrimary)
         .focusable()
+        .focused($focus, equals: .panel)
         .focusEffectDisabled()
         .onKeyPress(phases: .down) { handleKey($0, palette: p) }
         .onChange(of: model.selectedID) { applyPendingOrReset() }
         .onChange(of: model.filter) { applyPendingOrReset() }
+        .onAppear { focus = .panel }
     }
 
     /// Resolve a pending jump target to its row index, otherwise reset selection.
@@ -104,9 +110,16 @@ struct CheatSheetView: View {
             Image(systemName: "magnifyingglass").font(.caption).foregroundStyle(p.textSecondary)
             TextField("Search all apps (/)", text: $model.filter)
                 .textFieldStyle(.plain)
+                .foregroundStyle(p.textPrimary)
+                .tint(p.accent)
                 .frame(width: 220)
-                .focused($searchFocused)
+                .focused($focus, equals: .search)
                 .onSubmit { jumpToSelectedHit() }
+                // The focused NSTextField field editor swallows Escape before it
+                // reaches the panel's .onKeyPress, so handle it here directly.
+                .onExitCommand {
+                    if model.filter.isEmpty { exitSearch() } else { model.filter = "" }
+                }
         }
         .padding(.horizontal, 10).padding(.vertical, 6)
         .background(p.surface, in: Capsule())
@@ -127,7 +140,7 @@ struct CheatSheetView: View {
                 .background(active ? p.accent.opacity(0.22) : p.surface, in: Capsule())
                 .overlay(Capsule().strokeBorder(active ? p.accent.opacity(0.5) : .clear))
                 .contentShape(Capsule())
-                .onTapGesture { searchFocused = false; model.selectTab(index: idx) }
+                .onTapGesture { focus = .panel; model.selectTab(index: idx) }
             }
             Spacer()
         }
@@ -210,7 +223,7 @@ struct CheatSheetView: View {
     private func handleKey(_ press: KeyPress, palette p: Palette) -> KeyPress.Result {
         // While the search field has focus, intercept only navigation; typing
         // (and everything else) falls through to the TextField.
-        if searchFocused {
+        if isSearching {
             switch press.key {
             case .escape:
                 if model.filter.isEmpty { exitSearch() } else { model.filter = "" }
@@ -256,11 +269,11 @@ struct CheatSheetView: View {
     private func enterSearch() {
         pendingTarget = nil
         selection = 0
-        searchFocused = true
+        focus = .search
     }
 
     private func exitSearch() {
-        searchFocused = false
+        focus = .panel
         pendingTarget = nil
         model.filter = ""
         selection = 0
@@ -271,7 +284,7 @@ struct CheatSheetView: View {
         guard searchFlat.indices.contains(selection) else { return }
         let hit = searchFlat[selection]
         pendingTarget = rowID(hit.sectionTitle, hit.shortcut)
-        searchFocused = false
+        focus = .panel
         model.select(providerID: hit.sheetID)   // sets selectedID + clears filter → applyPendingOrReset
     }
 

@@ -26,8 +26,8 @@ public struct HjklSettings: Codable, Sendable, Hashable {
 
     public init(
         apps: [AppEntry] = [],
-        themeID: String = "system",
-        holdToPeekEnabled: Bool = true,
+        themeID: String = "catppuccin-mocha",
+        holdToPeekEnabled: Bool = false,
         toggleEnabled: Bool = true
     ) {
         self.apps = apps
@@ -143,6 +143,11 @@ public final class SettingsStore: @unchecked Sendable {
     public func setTheme(_ id: String) {
         lock.lock(); defer { lock.unlock() }
         _settings.themeID = id
+    }
+
+    public func setHoldToPeek(_ on: Bool) {
+        lock.lock(); defer { lock.unlock() }
+        _settings.holdToPeekEnabled = on
     }
 
     public func entry(_ id: String) -> AppEntry? {

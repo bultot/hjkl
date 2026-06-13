@@ -116,6 +116,12 @@ final class AppModel {
         store.setTheme(id); store.save(); applyTheme()
     }
 
+    var holdToPeekEnabled: Bool { store.settings.holdToPeekEnabled }
+
+    func setHoldToPeek(_ on: Bool) {
+        store.setHoldToPeek(on); store.save()
+    }
+
     // MARK: tab navigation
 
     func selectNextTab(_ delta: Int) {

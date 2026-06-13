@@ -38,14 +38,26 @@ final class HotkeyManager {
 
     func start() {
         KeyboardShortcuts.onKeyUp(for: .toggleCheatSheet) { [onToggle] in onToggle() }
-        // Global monitor fires while other apps are focused; local monitor covers
-        // the case where our own (key) panel is up.
-        globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { [weak self] e in
-            MainActor.assumeIsolated { self?.handleFlags(e.modifierFlags) }
-        }
-        localMonitor = NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { [weak self] e in
-            MainActor.assumeIsolated { self?.handleFlags(e.modifierFlags) }
-            return e
+    }
+
+    /// Install/remove the hold-to-peek modifier monitors. Off by default; the
+    /// global monitor fires while other apps are focused, the local monitor
+    /// covers the case where our own (key) panel is up.
+    func setPeekEnabled(_ enabled: Bool) {
+        if enabled {
+            guard globalMonitor == nil else { return }
+            globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { [weak self] e in
+                MainActor.assumeIsolated { self?.handleFlags(e.modifierFlags) }
+            }
+            localMonitor = NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { [weak self] e in
+                MainActor.assumeIsolated { self?.handleFlags(e.modifierFlags) }
+                return e
+            }
+        } else {
+            if let m = globalMonitor { NSEvent.removeMonitor(m); globalMonitor = nil }
+            if let m = localMonitor { NSEvent.removeMonitor(m); localMonitor = nil }
+            peekWork?.cancel(); peekWork = nil
+            if peeking { peeking = false; onPeekEnd() }
         }
     }
 
