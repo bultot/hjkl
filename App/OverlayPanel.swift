@@ -21,7 +21,9 @@ final class OverlayPanel: NSPanel {
         hasShadow = false
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         hidesOnDeactivate = false
-        animationBehavior = .utilityWindow
+        // No window-level show/hide animation — the overlay must appear and
+        // disappear instantly.
+        animationBehavior = .none
     }
 
     override var canBecomeKey: Bool { true }
@@ -45,11 +47,10 @@ final class OverlayController {
         panel.contentView = hosting
     }
 
-    private var isAnimatingOut = false
     /// App that was frontmost before we activated, so we can hand focus back on hide.
     private var previousApp: NSRunningApplication?
 
-    var isVisible: Bool { panel.isVisible && !isAnimatingOut }
+    var isVisible: Bool { panel.isVisible }
 
     /// Toggle for the sticky hotkey (interactive: becomes key).
     func toggle() {
@@ -57,8 +58,8 @@ final class OverlayController {
     }
 
     /// `activating: true` → interactive (vim nav, filter). `false` → glance only
-    /// (hold-to-peek), shown without stealing focus. Appears instantly; the
-    /// fade + rise lives only on dismiss (see hide()).
+    /// (hold-to-peek), shown without stealing focus. Appears and dismisses
+    /// instantly — no transitions.
     func show(activating: Bool) {
         // Match the panel's appearance to the theme so AppKit-backed controls
         // (e.g. the search field's editor) draw readable text. System theme
@@ -73,7 +74,6 @@ final class OverlayController {
         // panel is correct for the common case the instant it appears.
         model.selectForFrontmost(bundleID: bundle)
 
-        isAnimatingOut = false
         panel.alphaValue = 1
         panel.setFrame(defaultFrame(), display: false)
 
@@ -102,32 +102,17 @@ final class OverlayController {
 
     /// Switch to the process-aware provider once the async cmux probe returns.
     private func applyResolvedProvider(_ pid: String) {
-        guard panel.isVisible, !isAnimatingOut, model.hasSheet(pid) else { return }
+        guard panel.isVisible, model.hasSheet(pid) else { return }
         model.select(providerID: pid)
     }
 
     func hide() {
-        guard panel.isVisible, !isAnimatingOut else { return }
-        isAnimatingOut = true
-        let reduce = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-        let end = reduce ? panel.frame : panel.frame.offsetBy(dx: 0, dy: -8)
-        NSAnimationContext.runAnimationGroup({ ctx in
-            ctx.duration = reduce ? 0.06 : 0.10
-            ctx.timingFunction = CAMediaTimingFunction(name: .easeIn)
-            panel.animator().alphaValue = 0
-            panel.animator().setFrame(end, display: true)
-        }, completionHandler: { [weak self] in
-            // Runs on the main thread; assert isolation to touch main-actor state.
-            MainActor.assumeIsolated {
-                guard let self else { return }
-                self.panel.orderOut(nil)
-                self.panel.alphaValue = 1
-                self.isAnimatingOut = false
-                // Hand focus back to whoever had it before we activated.
-                self.previousApp?.activate()
-                self.previousApp = nil
-            }
-        })
+        guard panel.isVisible else { return }
+        // Instant dismiss — no fade or slide.
+        panel.orderOut(nil)
+        // Hand focus back to whoever had it before we activated.
+        previousApp?.activate()
+        previousApp = nil
     }
 
     /// Horizontally centered; vertically biased toward the upper third to match

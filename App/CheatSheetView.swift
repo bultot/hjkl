@@ -175,7 +175,7 @@ struct CheatSheetView: View {
             }
             .onChange(of: selection) {
                 guard let rid = scrollTargetID else { return }
-                withAnimation(.easeOut(duration: 0.12)) { proxy.scrollTo(rid, anchor: .center) }
+                proxy.scrollTo(rid, anchor: .center)
             }
         }
     }
