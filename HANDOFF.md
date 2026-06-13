@@ -41,11 +41,16 @@ HJKL_PROVIDER=<id> <app-binary>` renders a sheet to PNG (no window). Live overla
    (5 unit tests). App/ContextResolver.swift shells out to the cmux CLI (env
    CMUX_BUNDLED_CLI_PATH or /Applications/cmux.app/.../bin/cmux); OverlayController.show()
    uses it, falling back to bundle-id match. Live tab-switch needs owner's session.
-2. TODO — Wire App/AppIconView.swift → AppIcon.appiconset: add an
-   HJKL_RENDER_ICON=path mode in AppDelegate (ImageRenderer of AppIconView @1024),
-   `sips` to all sizes (16..512 @1x/@2x), write Contents.json into
-   App/Assets.xcassets/AppIcon.appiconset, ensure project.yml/asset catalog picks it
-   up (may need an Assets.xcassets in App/ + ASSETCATALOG settings), rebuild.
+2. DONE — App icon wired. AppDelegate has an HJKL_RENDER_ICON=dir mode that renders
+   AppIconView natively at each appiconset pixel size (16…1024, scale 1, per-size
+   canvas — crisper than downsampling one master). AppIconView is parameterized by
+   `canvas` (all metrics are canvas fractions; 1024 output unchanged).
+   scripts/gen-icon.sh builds → renders → writes App/Assets.xcassets/AppIcon.appiconset
+   → rebuilds. project.yml sets ASSETCATALOG_COMPILER_APPICON_NAME=AppIcon; the
+   catalog is under App/ (picked up by the existing `sources: App`). Build embeds
+   AppIcon.icns; Info.plist CFBundleIconName=AppIcon. Re-run gen-icon.sh after any
+   AppIconView change. (Classic .appiconset, not the macOS 26 Icon Composer .icon —
+   the artwork is a single flat SwiftUI layer.)
 3. TODO — Global `/` search across ALL providers (not just current tab): `/` opens a
    search matching shortcuts across every enabled sheet, grouped by app, keyboard
    selectable. Currently `/` filters only the active sheet (in CheatSheetView).
