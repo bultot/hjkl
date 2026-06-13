@@ -1,0 +1,79 @@
+import SwiftUI
+import CheatCore
+import KeyboardShortcuts
+
+struct SettingsView: View {
+    @Bindable var model: AppModel
+    var onEnableHoldToPeek: () -> Void = {}
+
+    var body: some View {
+        TabView {
+            appsTab
+                .tabItem { Label("Apps", systemImage: "square.grid.2x2") }
+            generalTab
+                .tabItem { Label("General", systemImage: "gearshape") }
+        }
+        .frame(width: 480, height: 460)
+    }
+
+    // MARK: Apps
+
+    private var appsTab: some View {
+        Form {
+            Section("Show these apps") {
+                ForEach(model.registry.providers, id: \.id) { provider in
+                    Toggle(isOn: Binding(
+                        get: { model.isEnabled(provider.id) },
+                        set: { model.setEnabled(provider.id, $0) }
+                    )) {
+                        HStack(spacing: 8) {
+                            Image(systemName: provider.symbol).frame(width: 18)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(provider.displayName)
+                                if let p = provider.defaultConfigPath {
+                                    Text(prettyPath(p))
+                                        .font(.caption2).foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    private func prettyPath(_ url: URL) -> String {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        return url.path.replacingOccurrences(of: home, with: "~")
+    }
+
+    // MARK: General
+
+    private var generalTab: some View {
+        Form {
+            Section("Appearance") {
+                Picker("Theme", selection: Binding(
+                    get: { model.themeID },
+                    set: { model.setTheme($0) }
+                )) {
+                    ForEach(Theme.presets) { Text($0.name).tag($0.id) }
+                }
+            }
+            Section("Hotkeys") {
+                KeyboardShortcuts.Recorder("Toggle cheat sheet", name: .toggleCheatSheet)
+                LabeledContent("Hold-to-peek") {
+                    Button("Enable (Accessibility)…", action: onEnableHoldToPeek)
+                }
+                Text("Hold ⌥ to peek; release to dismiss. Needs Accessibility permission.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Section {
+                LabeledContent("Reload all configs") {
+                    Button("Reload") { model.reload() }
+                }
+            }
+        }
+        .formStyle(.grouped)
+    }
+}

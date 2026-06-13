@@ -2,40 +2,78 @@ import SwiftUI
 import CheatCore
 import AppKit
 
-/// App-wide state: which provider sheets are loaded, the selected tab, the live
-/// filter, and the active theme. Reloads sheets from the providers on demand.
+/// App-wide state: which provider sheets are loaded (per Settings), the selected
+/// tab, the live filter, and the active theme. Reloads from providers on demand
+/// and when any watched config file changes.
 @MainActor
 @Observable
 final class AppModel {
     let registry = ProviderRegistry.defaults
+    let store = SettingsStore()
+
     private(set) var sheets: [ShortcutSheet] = []
     var selectedID: String = ""
     var filter: String = ""
     var theme: Theme = .system
 
+    @ObservationIgnored private var watcher: ConfigWatcher?
+
     var palette: Palette { Palette(theme: theme) }
 
     init() {
+        store.load()
+        applyTheme()
         reload()
     }
 
-    /// (Re)load every available provider's sheet (config present or always-available).
-    func reload() {
-        sheets = registry.available.compactMap { provider in
-            try? provider.load(configPath: nil)
+    // MARK: providers / sheets
+
+    /// Providers the user has enabled in Settings.
+    var enabledProviders: [any ShortcutProvider] {
+        registry.providers.filter { store.entry($0.id)?.enabled ?? false }
+    }
+
+    private func configURL(for provider: any ShortcutProvider) -> URL? {
+        if let o = store.entry(provider.id)?.configPathOverride, !o.isEmpty {
+            return URL(fileURLWithPath: (o as NSString).expandingTildeInPath)
+        }
+        return provider.defaultConfigPath
+    }
+
+    /// Rebuild the sheets (no watcher churn). Safe to call from the file watcher.
+    func reloadSheets() {
+        sheets = enabledProviders.compactMap { p in
+            try? p.load(configPath: store.entry(p.id)?.configPathOverride.flatMap {
+                $0.isEmpty ? nil : URL(fileURLWithPath: ($0 as NSString).expandingTildeInPath)
+            })
         }
         .filter { $0.count > 0 }
-
         if selectedID.isEmpty || !sheets.contains(where: { $0.id == selectedID }) {
             selectedID = sheets.first?.id ?? ""
         }
     }
 
-    var selectedSheet: ShortcutSheet? {
-        sheets.first { $0.id == selectedID }
+    /// Full reload: rebuild sheets and re-arm the config watcher.
+    func reload() {
+        reloadSheets()
+        refreshWatching()
     }
 
-    /// Pick the tab matching the frontmost app's bundle id (if we have a sheet for it).
+    private func refreshWatching() {
+        let paths = enabledProviders
+            .compactMap { configURL(for: $0) }
+            .filter { FileManager.default.fileExists(atPath: $0.path) }
+        watcher?.stop()
+        guard !paths.isEmpty else { watcher = nil; return }
+        let w = ConfigWatcher(paths: paths) { [weak self] in
+            Task { @MainActor in self?.reloadSheets() }
+        }
+        w.start()
+        watcher = w
+    }
+
+    var selectedSheet: ShortcutSheet? { sheets.first { $0.id == selectedID } }
+
     func selectForFrontmost(bundleID: String?) {
         guard let bundleID,
               let provider = registry.provider(forBundleID: bundleID),
@@ -45,7 +83,6 @@ final class AppModel {
         filter = ""
     }
 
-    /// Sections of `sheet` filtered by the current query (matches action or keys).
     func filteredSections(_ sheet: ShortcutSheet) -> [CheatCore.Section] {
         let q = filter.trimmingCharacters(in: .whitespaces).lowercased()
         guard !q.isEmpty else { return sheet.sections }
@@ -55,6 +92,24 @@ final class AppModel {
             }
             return hits.isEmpty ? nil : CheatCore.Section(title: section.title, shortcuts: hits)
         }
+    }
+
+    // MARK: settings mutations
+
+    func isEnabled(_ id: String) -> Bool { store.entry(id)?.enabled ?? false }
+
+    func setEnabled(_ id: String, _ on: Bool) {
+        store.setEnabled(id, on); store.save(); reload()
+    }
+
+    var themeID: String { store.settings.themeID }
+
+    func applyTheme() {
+        theme = Theme.presets.first { $0.id == store.settings.themeID } ?? .system
+    }
+
+    func setTheme(_ id: String) {
+        store.setTheme(id); store.save(); applyTheme()
     }
 
     // MARK: tab navigation

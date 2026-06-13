@@ -19,7 +19,7 @@ struct HjklApp: App {
         }
 
         Settings {
-            SettingsView(model: delegate.model)
+            SettingsView(model: delegate.model, onEnableHoldToPeek: { delegate.enableHoldToPeek() })
         }
     }
 }
@@ -93,23 +93,5 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
               let rep = NSBitmapImageRep(data: tiff),
               let png = rep.representation(using: .png, properties: [:]) else { return }
         try? png.write(to: URL(fileURLWithPath: path))
-    }
-}
-
-/// Placeholder settings — replaced in phase 4.
-struct SettingsView: View {
-    let model: AppModel
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("hjkl").font(.largeTitle.bold())
-            Text("Context-aware keyboard cheat sheet").foregroundStyle(.secondary)
-            Divider()
-            ForEach(model.sheets) { sheet in
-                Label("\(sheet.title) — \(sheet.count) shortcuts", systemImage: sheet.symbol ?? "keyboard")
-            }
-        }
-        .padding(24)
-        .frame(width: 420, height: 260)
     }
 }
