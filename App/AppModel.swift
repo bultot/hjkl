@@ -92,16 +92,11 @@ final class AppModel {
         filter = ""
     }
 
-    func filteredSections(_ sheet: ShortcutSheet) -> [CheatCore.Section] {
-        let q = filter.trimmingCharacters(in: .whitespaces).lowercased()
-        guard !q.isEmpty else { return sheet.sections }
-        return sheet.sections.compactMap { section in
-            let hits = section.shortcuts.filter {
-                $0.action.lowercased().contains(q) || $0.keys.lowercased().contains(q)
-            }
-            return hits.isEmpty ? nil : CheatCore.Section(title: section.title, shortcuts: hits)
-        }
-    }
+    /// Global search across every enabled sheet, grouped by app. Empty while the
+    /// query is blank (the overlay shows a prompt instead).
+    var searchGroups: [SearchGroup] { searchSheets(sheets, query: filter) }
+
+    var searchHitCount: Int { searchGroups.reduce(0) { $0 + $1.count } }
 
     // MARK: settings mutations
 

@@ -85,6 +85,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func renderSheetPNG(to path: String, themeID: String?) {
         if let id = themeID, let t = Theme.presets.first(where: { $0.id == id }) { model.theme = t }
         if let pid = ProcessInfo.processInfo.environment["HJKL_PROVIDER"] { model.selectedID = pid }
+        if let q = ProcessInfo.processInfo.environment["HJKL_SEARCH"] { model.filter = q }
         let view = RenderHarness(model: model)
         let renderer = ImageRenderer(content: view)
         renderer.scale = 2

@@ -46,6 +46,83 @@ func columnCount(for sections: [CheatCore.Section]) -> Int {
     min(3, max(1, sections.count))
 }
 
+// MARK: - Global search
+
+/// Distribute search groups into `count` height-balanced columns (greedy), so a
+/// broad query doesn't pile every app into one tall column.
+func balancedGroups(_ groups: [SearchGroup], _ count: Int) -> [[SearchGroup]] {
+    guard count > 1 else { return [groups] }
+    var cols = Array(repeating: [SearchGroup](), count: count)
+    var heights = Array(repeating: 0, count: count)
+    for g in groups {
+        let i = heights.indices.min(by: { heights[$0] < heights[$1] }) ?? 0
+        cols[i].append(g)
+        heights[i] += g.hits.count + 2   // +2 weights the app header
+    }
+    return cols
+}
+
+/// Multi-column grid of per-app result cards for global search.
+struct SearchResultsView: View {
+    let groups: [SearchGroup]
+    let palette: Palette
+    var selectedHitID: String? = nil
+
+    private var columns: Int { min(3, max(1, groups.count)) }
+
+    var body: some View {
+        let cols = balancedGroups(groups, columns)
+        HStack(alignment: .top, spacing: 18) {
+            ForEach(Array(cols.enumerated()), id: \.offset) { _, colGroups in
+                VStack(alignment: .leading, spacing: 16) {
+                    ForEach(colGroups) { g in
+                        SearchGroupCardView(group: g, palette: palette, selectedHitID: selectedHitID)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .frame(maxWidth: .infinity, alignment: .top)
+            }
+        }
+    }
+}
+
+/// One app's matches: header (icon + name + count) then flat shortcut rows.
+struct SearchGroupCardView: View {
+    let group: SearchGroup
+    let palette: Palette
+    var selectedHitID: String? = nil
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: group.symbol ?? "keyboard")
+                    .font(.caption).foregroundStyle(palette.accent)
+                Text(group.title.uppercased())
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(palette.sectionTitle)
+                    .tracking(0.6)
+                Text("\(group.count)")
+                    .font(.caption2.monospaced())
+                    .foregroundStyle(palette.textSecondary)
+                    .padding(.horizontal, 6).padding(.vertical, 1)
+                    .background(palette.surface, in: Capsule())
+            }
+            VStack(spacing: 0) {
+                ForEach(group.hits) { hit in
+                    ShortcutRowView(
+                        shortcut: hit.shortcut,
+                        palette: palette,
+                        selected: selectedHitID == hit.id
+                    )
+                    .id(hit.id)
+                }
+            }
+            .padding(.vertical, 4)
+            .background(palette.surface.opacity(0.6), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+    }
+}
+
 /// A single key-combo chip.
 struct KeyCapView: View {
     let keys: String
