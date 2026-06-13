@@ -1,0 +1,153 @@
+{
+  "$schema": "https://raw.githubusercontent.com/manaflow-ai/cmux/main/web/data/cmux.schema.json",
+  "schemaVersion": 1,
+
+  // Catppuccin chrome (flavor from chezmoi data). Terminal colors themselves come from the
+  // Ghostty config (catppuccin flavor), which cmux inherits.
+  // Backup of the commented template: cmux.json.bak-pre-catppuccin
+
+  "sidebarAppearance": {
+    "matchTerminalBackground": true
+  },
+
+  // ── App behavior ──────────────────────────────────────────────────────────
+  // Multi-agent, keyboard-first workflow: keep Cmd+1-9 positions stable (don't
+  // reshuffle on notifications), and drop new agent workspaces right after the
+  // current one inside their project group.
+  "app": {
+    "reorderOnNotification": false,
+    "newWorkspacePlacement": "afterCurrent"
+  },
+
+  // Dock badge = live unread agent count; pane ring highlights the agent that
+  // needs attention (jump to it with Cmd+Shift+U).
+  "notifications": {
+    "dockBadge": true,
+    "unreadPaneRing": true
+  },
+
+  // ── Keyboard note (no rebinds) ────────────────────────────────────────────
+  // macOS terminal vim/zsh never receive Cmd chords (the app intercepts them),
+  // so Cmd+1-9 / Cmd+[ / Cmd+] / Cmd+D do NOT fight shell or vim line editing.
+  // There is no Cmd+Left/Right binding (pane focus is Opt+Cmd+arrows; zsh
+  // word-jump is bare Opt+arrows). Cmd+[ / Cmd+] = Focus Back/Forward only
+  // shadows those keys inside browser panes. Intentionally no "shortcuts" block.
+
+  // ── Project groups (one collapsible group per repo) ───────────────────────
+  // Color + SF Symbol icon keyed by the anchor workspace's cwd. The groups
+  // themselves are created/pinned with `cmux workspace-group ...`; this block
+  // makes the styling declarative and reproducible across rebuilds.
+  "workspaceGroups": {
+    "newWorkspacePlacement": "afterCurrent",
+    "byCwd": {
+      "/Users/robin@backbase.com/.local/share/chezmoi": {
+        "color": "#89b4fa",
+        "icon": "gearshape.2.fill"
+      },
+      "/Users/robin@backbase.com/projects/system/homeassistant": {
+        "color": "#94e2d5",
+        "icon": "house.fill"
+      },
+      "/Users/robin@backbase.com/projects/backbase/meeting-recorder": {
+        "color": "#f38ba8",
+        "icon": "record.circle.fill"
+      },
+      "/Users/robin@backbase.com/projects/backbase/google-oauth-bypass": {
+        "color": "#fab387",
+        "icon": "lock.shield.fill"
+      },
+      "/Users/robin@backbase.com/projects/system/infra": {
+        "color": "#74c7ec",
+        "icon": "server.rack"
+      },
+      "/Users/robin@backbase.com/projects/backbase/ca-org-overview": {
+        "color": "#eba0ac",
+        "icon": "chart.bar.fill"
+      },
+      "/Users/robin@backbase.com/projects/second-brain/claude-tolaria": {
+        "color": "#cba6f7",
+        "icon": "brain.head.profile"
+      },
+      "/Users/robin@backbase.com/projects/second-brain/robins-second-brain": {
+        "color": "#b4befe",
+        "icon": "books.vertical.fill"
+      },
+      "/Users/robin@backbase.com/projects/personal/personal-finance-overview": {
+        "color": "#f9e2af",
+        "icon": "dollarsign.circle.fill"
+      }
+    }
+  },
+
+  // ── Agent Worktree command (the 2-pane agent layout) ──────────────────────
+  // Left 62%: prompts for a name, makes the sibling worktree (branch
+  // agent/<name>), launches claude. Right 38%: the project's test/log watcher.
+  // The two panes hand off the worktree path via a per-workspace state file
+  // ($TMPDIR/cmux-ccw-$CMUX_WORKSPACE_ID.dir). Logic lives in ccw-spawn /
+  // ccw-attach / ccw-watch (~/.local/bin) so this stays readable.
+  "commands": [
+    {
+      "name": "Agent Worktree",
+      "keywords": ["agent", "worktree", "claude", "ccw"],
+      "description": "New git worktree + claude + watcher, inside this project group",
+      "workspace": {
+        "name": "agent",
+        "cwd": ".",
+        "layout": {
+          "direction": "horizontal",
+          "split": 0.62,
+          "children": [
+            {
+              "pane": {
+                "surfaces": [
+                  { "type": "terminal", "name": "claude", "command": "exec ccw-spawn", "focus": true }
+                ]
+              }
+            },
+            {
+              "pane": {
+                "surfaces": [
+                  { "type": "terminal", "name": "watch", "command": "exec ccw-attach" }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+
+  // Make the sidebar + button spawn an Agent Worktree by default; keep a plain
+  // terminal one right-click away.
+  "ui": {
+    "newWorkspace": {
+      "action": "agent-worktree",
+      "contextMenu": [
+        { "action": "agent-worktree", "title": "Agent Worktree" },
+        { "type": "separator" },
+        { "action": "cmux.newTerminal", "title": "New Terminal" }
+      ]
+    }
+  },
+
+  "workspaceColors": {
+    "selectionColor": "#45475a",
+    "notificationBadgeColor": "#cba6f7",
+    "colors": {
+      "Rosewater": "#f5e0dc",
+      "Flamingo": "#f2cdcd",
+      "Pink": "#f5c2e7",
+      "Mauve": "#cba6f7",
+      "Red": "#f38ba8",
+      "Maroon": "#eba0ac",
+      "Peach": "#fab387",
+      "Yellow": "#f9e2af",
+      "Green": "#a6e3a1",
+      "Teal": "#94e2d5",
+      "Sky": "#89dceb",
+      "Sapphire": "#74c7ec",
+      "Blue": "#89b4fa",
+      "Lavender": "#b4befe"
+    }
+  }
+}

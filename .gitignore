@@ -1,0 +1,12 @@
+# Xcode / SwiftPM
+.DS_Store
+build/
+DerivedData/
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+.swiftpm/
+CheatCore/.build/
+.build/
+
+# XcodeGen generates this; keep project.yml as the source of truth
+hjkl.xcodeproj/

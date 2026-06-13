@@ -1,0 +1,289 @@
+# AeroSpace config
+# Managed by chezmoi. Edit in ~/.local/share/chezmoi/home/dot_config/aerospace/ then `chezmoi apply`.
+# Deployed to:    ~/.config/aerospace/aerospace.toml (chezmoi-managed)
+# Docs: https://nikitabobko.github.io/AeroSpace/guide
+
+start-at-login = true
+
+enable-normalization-flatten-containers = true
+enable-normalization-opposite-orientation-for-nested-containers = true
+
+default-root-container-layout = 'tiles'
+default-root-container-orientation = 'auto'
+
+accordion-padding = 0
+
+on-focused-monitor-changed = ['move-mouse monitor-lazy-center']
+on-focus-changed = ['exec-and-forget ~/.config/aerospace/smart-borders.sh']
+
+after-startup-command = [
+    'exec-and-forget borders style=round width=2.0 hidpi=on active_color=0xffcba6f7 inactive_color=0xff313244',
+    'exec-and-forget ~/.config/aerospace/smart-borders.sh',
+    # Post-login cleanup: at startup apps are detected before their titles are
+    # set, so title-routed windows miss their rules. Rally once things settle.
+    'exec-and-forget /bin/bash -c "sleep 6; ~/.config/aerospace/rally-windows.sh"',
+]
+
+exec-on-workspace-change = ['/bin/bash', '-c',
+    '~/.config/aerospace/smart-borders.sh; ~/.config/aerospace/follow-windows.sh; if [ "$AEROSPACE_FOCUSED_WORKSPACE" = "Scheduling" ]; then ~/.config/aerospace/arrange-mail.sh; fi',
+]
+
+# Inner gaps only exist BETWEEN windows (8px). Outer gaps are a constant 2px
+# so the 2px JankyBorders ring is visible at the screen edges when 2+ windows
+# tile. A lone window keeps the 2px margin but its borders are hidden
+# (smart-borders.sh), so it still reads as maximized. Dynamic outer gaps were
+# tried and reverted: toggling needs reload-config, which visibly re-lays-out
+# windows on workspace switches.
+[gaps]
+    inner.horizontal = 8
+    inner.vertical = 8
+    outer.left = 2
+    outer.bottom = 2
+    outer.top = 2
+    outer.right = 2
+
+[workspace-to-monitor-force-assignment]
+
+# ---------------------------------------------------------------------------
+# Window routing
+# ---------------------------------------------------------------------------
+
+# Helium: both profiles share bundle id net.imput.helium; route by startup title.
+[[on-window-detected]]
+    if.app-id = 'net.imput.helium'
+    if.window-title-regex-substring = 'Helium - Personal'
+    run = 'move-node-to-workspace Personal'
+
+[[on-window-detected]]
+    if.app-id = 'net.imput.helium'
+    if.window-title-regex-substring = 'Helium - Work'
+    run = 'move-node-to-workspace Work'
+
+# Google Calendar PWA: installed in the dedicated helium-calendar instance,
+# its shim has its own bundle id (shows as "Google Calendar" in Cmd-Tab).
+[[on-window-detected]]
+    if.app-id = 'net.imput.helium.app.kjbdgfilnfhdoflbpgamdcdgpehopbep'
+    run = 'move-node-to-workspace Scheduling'
+
+# Google Meet PWA: installed in main Helium's Work profile (Chrome-Tab screen
+# share must see Work tabs), shows as "Google Meet" in Cmd-Tab.
+[[on-window-detected]]
+    if.app-id = 'net.imput.helium.app.kjgfgldnnfoeklkmfkjfagphfepbbdan'
+    run = 'move-node-to-workspace Work'
+
+# Google Meet app-mode window (Google Meet Launcher.app -> --app=, Work
+# profile). Its title lacks the "Helium - <Profile>" suffix, so it never
+# matches the profile rules above; this must precede the Personal catch-all
+# below or that steals it. meet-launcher.sh also routes it actively to beat
+# the title race.
+[[on-window-detected]]
+    if.app-id = 'net.imput.helium'
+    if.window-title-regex-substring = 'Meet'
+    run = 'move-node-to-workspace Work'
+
+[[on-window-detected]]
+    if.app-id = 'net.imput.helium'
+    run = 'move-node-to-workspace Personal'
+
+# Mimestream: compose/reply/forward windows float; main window tiles on Scheduling.
+[[on-window-detected]]
+    if.app-id = 'com.mimestream.Mimestream'
+    if.window-title-regex-substring = '(compose|new message|re:|fwd:|draft)'
+    run = 'layout floating'
+
+[[on-window-detected]]
+    if.app-id = 'com.mimestream.Mimestream'
+    run = 'move-node-to-workspace Scheduling'
+
+[[on-window-detected]]
+    if.app-id = 'com.todoist.mac.Todoist'
+    run = 'move-node-to-workspace Scheduling'
+
+# AI: terminals + AI apps + Cursor
+[[on-window-detected]]
+    if.app-id = 'org.alacritty'
+    run = 'move-node-to-workspace AI'
+
+# Regular Ghostty windows tile on AI. The quake quick-terminal panel is NOT
+# affected: Ghostty sets its AXSubrole to kAXFloatingWindowSubrole precisely
+# so AeroSpace leaves it alone (see QuickTerminalWindow.swift upstream).
+[[on-window-detected]]
+    if.app-id = 'com.mitchellh.ghostty'
+    run = 'move-node-to-workspace AI'
+
+[[on-window-detected]]
+    if.app-id = 'com.cmuxterm.app'
+    run = 'move-node-to-workspace AI'
+
+[[on-window-detected]]
+    if.app-id = 'com.conductor.app'  # Conductor (cmux-replacement trial)
+    run = 'move-node-to-workspace AI'
+
+[[on-window-detected]]
+    if.app-id = 'net.kovidgoyal.kitty'
+    run = 'move-node-to-workspace AI'
+
+[[on-window-detected]]
+    if.app-id = 'com.apple.Terminal'
+    run = 'move-node-to-workspace AI'
+
+[[on-window-detected]]
+    if.app-id = 'dev.commandline.waveterm'
+    run = 'move-node-to-workspace AI'
+
+[[on-window-detected]]
+    if.app-id = 'com.anthropic.claudefordesktop'
+    run = 'move-node-to-workspace AI'
+
+[[on-window-detected]]
+    if.app-id = 'com.openai.chat'
+    run = 'move-node-to-workspace AI'
+
+[[on-window-detected]]
+    if.app-id = 'com.openai.codex'
+    run = 'move-node-to-workspace AI'
+
+[[on-window-detected]]
+    if.app-id = 'com.todesktop.230313mzl4w4u92'  # Cursor
+    run = 'move-node-to-workspace AI'
+
+[[on-window-detected]]
+    if.app-id = 'dev.zed.Zed'  # Zed (cmux-replacement bake-off trial)
+    run = 'move-node-to-workspace AI'
+
+[[on-window-detected]]
+    if.app-id = 'com.spotify.client'
+    run = 'move-node-to-workspace Music'
+
+[[on-window-detected]]
+    if.app-id = 'de.rme-audio.TotalmixFX'
+    run = ['layout floating', 'move-node-to-workspace Utils']
+
+[[on-window-detected]]
+    if.app-id = 'de.rme-audio.dkusbsettings'  # Fireface USB Settings
+    run = ['layout floating', 'move-node-to-workspace Utils']
+
+# Always-floating apps: stay on whatever workspace is focused.
+[[on-window-detected]]
+    if.app-id = 'net.whatsapp.WhatsApp'
+    run = 'layout floating'
+
+[[on-window-detected]]
+    if.app-id = 'com.apple.MobileSMS'
+    run = 'layout floating'
+
+[[on-window-detected]]
+    if.app-id = 'com.tinyspeck.slackmacgap'
+    run = 'layout floating'
+
+[[on-window-detected]]
+    if.app-id = 'com.hnc.Discord'
+    run = 'layout floating'
+
+[[on-window-detected]]
+    if.app-id = 'com.apple.Photos'
+    run = 'layout floating'
+
+[[on-window-detected]]
+    if.app-id = 'com.apple.FaceTime'
+    run = 'layout floating'
+
+[[on-window-detected]]
+    if.app-id = 'com.1password.1password'
+    run = 'layout floating'
+
+[[on-window-detected]]
+    if.app-id = 'com.apple.finder'
+    run = 'layout floating'
+
+[[on-window-detected]]
+    if.app-id = 'com.apple.systempreferences'
+    run = 'layout floating'
+
+[[on-window-detected]]
+    if.app-id = 'com.raycast-x.macos'
+    run = 'layout floating'
+
+[[on-window-detected]]
+    if.app-id = 'com.apple.Preview'
+    run = 'layout floating'
+
+[[on-window-detected]]
+    if.app-id = 'doc.md-preview'  # Markdown Preview
+    run = 'layout floating'
+
+[[on-window-detected]]
+    if.app-id = 'com.backbase.MeetingRecorder'  # never tile recorder windows
+    run = 'layout floating'
+
+# Catch-all, keep LAST: anything else that opens while Scheduling is focused
+# floats. The tiled 50/35/15 row is reserved for Mimestream + Calendar +
+# Todoist, whose rules above match first; apps routed to other workspaces
+# (Spotify, terminals, ...) are also matched above and unaffected.
+[[on-window-detected]]
+    if.workspace = 'Scheduling'
+    run = 'layout floating'
+
+# ---------------------------------------------------------------------------
+# Key bindings (hyper = caps lock = cmd-alt-ctrl via Raycast, WITHOUT shift;
+# hyper+shift moves windows)
+# ---------------------------------------------------------------------------
+
+[mode.main.binding]
+    # Workspaces: mnemonic letters
+    cmd-alt-ctrl-p = 'workspace Personal'
+    cmd-alt-ctrl-w = 'workspace Work'
+    cmd-alt-ctrl-m = 'workspace Scheduling'
+    cmd-alt-ctrl-a = 'workspace AI'
+    cmd-alt-ctrl-s = 'workspace Music'
+    cmd-alt-ctrl-u = 'workspace Utils'
+
+    # Workspaces: numbers
+    cmd-alt-ctrl-1 = 'workspace Personal'
+    cmd-alt-ctrl-2 = 'workspace Work'
+    cmd-alt-ctrl-3 = 'workspace Scheduling'
+    cmd-alt-ctrl-4 = 'workspace AI'
+    cmd-alt-ctrl-5 = 'workspace Music'
+    cmd-alt-ctrl-6 = 'workspace Utils'
+
+    # Move focused window to workspace and follow it
+    cmd-alt-ctrl-shift-p = 'move-node-to-workspace Personal --focus-follows-window'
+    cmd-alt-ctrl-shift-w = 'move-node-to-workspace Work --focus-follows-window'
+    cmd-alt-ctrl-shift-m = 'move-node-to-workspace Scheduling --focus-follows-window'
+    cmd-alt-ctrl-shift-a = 'move-node-to-workspace AI --focus-follows-window'
+    cmd-alt-ctrl-shift-s = 'move-node-to-workspace Music --focus-follows-window'
+    cmd-alt-ctrl-shift-u = 'move-node-to-workspace Utils --focus-follows-window'
+    cmd-alt-ctrl-shift-1 = 'move-node-to-workspace Personal --focus-follows-window'
+    cmd-alt-ctrl-shift-2 = 'move-node-to-workspace Work --focus-follows-window'
+    cmd-alt-ctrl-shift-3 = 'move-node-to-workspace Scheduling --focus-follows-window'
+    cmd-alt-ctrl-shift-4 = 'move-node-to-workspace AI --focus-follows-window'
+    cmd-alt-ctrl-shift-5 = 'move-node-to-workspace Music --focus-follows-window'
+    cmd-alt-ctrl-shift-6 = 'move-node-to-workspace Utils --focus-follows-window'
+
+    # Focus / move within the workspace
+    cmd-alt-ctrl-h = 'focus left'
+    cmd-alt-ctrl-j = 'focus down'
+    cmd-alt-ctrl-k = 'focus up'
+    cmd-alt-ctrl-l = 'focus right'
+    cmd-alt-ctrl-shift-h = 'move left'
+    cmd-alt-ctrl-shift-j = 'move down'
+    cmd-alt-ctrl-shift-k = 'move up'
+    cmd-alt-ctrl-shift-l = 'move right'
+
+    # Window/layout
+    cmd-alt-ctrl-f = 'fullscreen'
+    cmd-alt-ctrl-t = 'layout floating tiling'
+    cmd-alt-ctrl-backtick = 'workspace-back-and-forth'
+    cmd-alt-ctrl-r = 'exec-and-forget ~/.config/aerospace/arrange-mail.sh --force'
+
+    # Service mode for occasional management
+    cmd-alt-ctrl-comma = 'mode service'
+
+[mode.service.binding]
+    esc = ['reload-config', 'mode main']
+    f = ['flatten-workspace-tree', 'mode main']
+    b = ['balance-sizes', 'mode main']
+    r = ['exec-and-forget ~/.config/aerospace/rally-windows.sh', 'mode main']
+    minus = 'resize smart -50'
+    equal = 'resize smart +50'
+    backspace = ['close-all-windows-but-current', 'mode main']

@@ -1,0 +1,49 @@
+name: hjkl
+options:
+  bundleIdPrefix: nl.bultot
+  deploymentTarget:
+    macOS: "26.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+
+packages:
+  CheatCore:
+    path: CheatCore
+  KeyboardShortcuts:
+    url: https://github.com/sindresorhus/KeyboardShortcuts
+    from: "2.2.0"
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    # Local dev: ad-hoc sign (no Developer ID identity installed yet).
+    CODE_SIGN_IDENTITY: "-"
+    CODE_SIGN_STYLE: Manual
+    DEVELOPMENT_TEAM: ""
+    ENABLE_HARDENED_RUNTIME: NO
+
+targets:
+  hjkl:
+    type: application
+    platform: macOS
+    sources:
+      - App
+    info:
+      path: App/Info.generated.plist
+      properties:
+        # Menu-bar/agent app: no Dock icon, no main window.
+        LSUIElement: true
+        CFBundleDisplayName: hjkl
+        LSMinimumSystemVersion: "26.0"
+        NSHumanReadableCopyright: ""
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: nl.bultot.hjkl
+        GENERATE_INFOPLIST_FILE: NO
+        COMBINE_HIDPI_IMAGES: YES
+    dependencies:
+      - package: CheatCore
+        product: CheatCore
+      - package: KeyboardShortcuts
