@@ -6,6 +6,8 @@ struct SettingsView: View {
     @Bindable var model: AppModel
     var onSetHoldToPeek: (Bool) -> Void = { _ in }
 
+    @State private var openAtLogin = LoginItem.isEnabled
+
     var body: some View {
         TabView {
             appsTab
@@ -52,6 +54,14 @@ struct SettingsView: View {
 
     private var generalTab: some View {
         Form {
+            Section("Startup") {
+                Toggle("Open at login", isOn: $openAtLogin)
+                    .onChange(of: openAtLogin) { _, on in
+                        openAtLogin = LoginItem.setEnabled(on)
+                    }
+                Text("Starts hjkl in the menu bar when you log in.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             Section("Appearance") {
                 Picker("Theme", selection: Binding(
                     get: { model.themeID },
@@ -76,5 +86,6 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .onAppear { openAtLogin = LoginItem.isEnabled }
     }
 }
