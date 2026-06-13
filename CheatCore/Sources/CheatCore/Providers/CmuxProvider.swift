@@ -65,7 +65,7 @@ public struct CmuxProvider: ShortcutProvider {
             guard let name = command["name"] as? String, !name.isEmpty else { continue }
             let description = command["description"] as? String
             let action = name + (description.map { " — \($0)" } ?? "")
-            shortcuts.append(Shortcut(keys: "palette", action: action))
+            shortcuts.append(Shortcut(keys: "palette", action: action, source: .custom))
         }
 
         guard !shortcuts.isEmpty else { return nil }
@@ -135,16 +135,16 @@ public struct CmuxProvider: ShortcutProvider {
 
     static let builtInSections: [Section] = [
         Section(title: "Workspaces", shortcuts: [
-            Shortcut(keys: "⌘N", action: "New workspace"),
-            Shortcut(keys: "⌘1–9", action: "Select workspace 1–9"),
+            Shortcut(keys: "⌘N", action: "New workspace", essential: true),
+            Shortcut(keys: "⌘1–9", action: "Select workspace 1–9", essential: true),
             Shortcut(keys: "⌃⌘[", action: "Previous workspace"),
             Shortcut(keys: "⌃⌘]", action: "Next workspace"),
             Shortcut(keys: "⌘⇧G", action: "Group selected workspaces"),
             Shortcut(keys: "⌘⇧W", action: "Close workspace"),
-            Shortcut(keys: "⌘⇧U", action: "Jump to latest unread"),
+            Shortcut(keys: "⌘⇧U", action: "Jump to latest unread", essential: true),
         ]),
         Section(title: "Panes & Surfaces", shortcuts: [
-            Shortcut(keys: "⌘D", action: "Split right"),
+            Shortcut(keys: "⌘D", action: "Split right", essential: true),
             Shortcut(keys: "⌘T", action: "New surface"),
             Shortcut(keys: "⌥⌘←", action: "Focus pane left"),
             Shortcut(keys: "⌥⌘→", action: "Focus pane right"),

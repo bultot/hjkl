@@ -1,33 +1,88 @@
 import SwiftUI
 import CheatCore
+import AppKit
 
 @main
 struct HjklApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
+
     var body: some Scene {
         MenuBarExtra("hjkl", systemImage: "keyboard") {
-            Text("hjkl — keyboard cheat sheet")
+            Button("Show Cheat Sheet") { delegate.showOverlay() }
+            Divider()
+            Button("Reload Configs") { delegate.model.reload() }
+            SettingsLink { Text("Settings…") }
             Divider()
             Button("Quit hjkl") { NSApplication.shared.terminate(nil) }
                 .keyboardShortcut("q")
         }
 
         Settings {
-            SettingsView()
+            SettingsView(model: delegate.model)
         }
+    }
+}
+
+@MainActor
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    let model = AppModel()
+    private var controller: OverlayController?
+    private var contextMonitor: ContextMonitor?
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        // Dev tool: HJKL_RENDER=/path.png renders the sheet to a PNG (no window)
+        // for headless design review, then exits. HJKL_THEME / HJKL_PROVIDER select.
+        if let out = ProcessInfo.processInfo.environment["HJKL_RENDER"] {
+            renderSheetPNG(to: out, themeID: ProcessInfo.processInfo.environment["HJKL_THEME"])
+            NSApp.terminate(nil)
+            return
+        }
+        if ProcessInfo.processInfo.environment["HJKL_SHOW_ON_LAUNCH"] != nil {
+            DispatchQueue.main.async { [self] in showOverlay() }
+        }
+    }
+
+    /// Lazily build the overlay + context monitor on first use, then show it.
+    /// (Building the panel during app/scene setup is unreliable; defer to first use.)
+    func showOverlay() {
+        if controller == nil {
+            controller = OverlayController(model: model)
+            let monitor = ContextMonitor(model: model)
+            monitor.start()
+            contextMonitor = monitor
+        }
+        controller?.show(activating: true)
+    }
+
+    @MainActor
+    private func renderSheetPNG(to path: String, themeID: String?) {
+        if let id = themeID, let t = Theme.presets.first(where: { $0.id == id }) { model.theme = t }
+        if let pid = ProcessInfo.processInfo.environment["HJKL_PROVIDER"] { model.selectedID = pid }
+        let view = RenderHarness(model: model)
+        let renderer = ImageRenderer(content: view)
+        renderer.scale = 2
+        guard let img = renderer.nsImage,
+              let tiff = img.tiffRepresentation,
+              let rep = NSBitmapImageRep(data: tiff),
+              let png = rep.representation(using: .png, properties: [:]) else { return }
+        try? png.write(to: URL(fileURLWithPath: path))
     }
 }
 
 /// Placeholder settings — replaced in phase 4.
 struct SettingsView: View {
+    let model: AppModel
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("hjkl").font(.largeTitle.bold())
-            Text("Context-aware keyboard cheat sheet")
-                .foregroundStyle(.secondary)
-            Text("Known providers: \(ProviderRegistry.defaults.providers.map(\.displayName).joined(separator: ", "))")
-                .font(.callout)
+            Text("Context-aware keyboard cheat sheet").foregroundStyle(.secondary)
+            Divider()
+            ForEach(model.sheets) { sheet in
+                Label("\(sheet.title) — \(sheet.count) shortcuts", systemImage: sheet.symbol ?? "keyboard")
+            }
         }
         .padding(24)
-        .frame(width: 420, height: 200)
+        .frame(width: 420, height: 260)
     }
 }

@@ -80,7 +80,9 @@ public struct AeroSpaceProvider: ShortcutProvider {
 
             let action = parseActionValue(rawValue)
             let keys = KeyFormatting.chord(fromCombo: combo)
-            currentShortcuts.append(Shortcut(keys: keys, action: humanizeAction(action)))
+            let label = humanizeAction(action)
+            let essential = label.hasPrefix("Workspace:") || label.hasPrefix("Focus ")
+            currentShortcuts.append(Shortcut(keys: keys, action: label, essential: essential, source: .custom))
         }
         flush()
 

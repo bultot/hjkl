@@ -1,16 +1,29 @@
 import Foundation
 
+/// Where a shortcut's binding came from. Most tools ship default keymaps that the
+/// config only *overrides*, so providers merge bundled defaults with parsed config.
+public enum ShortcutSource: String, Sendable, Hashable, Codable {
+    case builtinDefault   // the tool's out-of-the-box binding (not in the user config)
+    case override         // a default the user rebound in their config
+    case custom           // user-defined, no default counterpart
+}
+
 /// A single keyboard shortcut: the key combo (display-ready) and what it does.
 public struct Shortcut: Identifiable, Sendable, Hashable, Codable {
     public var keys: String
     public var action: String
+    /// Popular/most-used shortcuts, surfaced with emphasis.
+    public var essential: Bool
+    public var source: ShortcutSource
 
     /// Deterministic id (stable across loads → good for SwiftUI diffing and tests).
     public var id: String { keys + "\u{1}" + action }
 
-    public init(keys: String, action: String) {
+    public init(keys: String, action: String, essential: Bool = false, source: ShortcutSource = .builtinDefault) {
         self.keys = keys
         self.action = action
+        self.essential = essential
+        self.source = source
     }
 }
 
