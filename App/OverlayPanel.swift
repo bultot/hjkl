@@ -42,38 +42,70 @@ final class OverlayController {
         panel.contentView = hosting
     }
 
-    var isVisible: Bool { panel.isVisible }
+    private var isAnimatingOut = false
+
+    var isVisible: Bool { panel.isVisible && !isAnimatingOut }
 
     /// Toggle for the sticky hotkey (interactive: becomes key).
     func toggle() {
-        if panel.isVisible { hide() } else { show(activating: true) }
+        if isVisible { hide() } else { show(activating: true) }
     }
 
     /// `activating: true` → interactive (vim nav, filter). `false` → glance only
-    /// (hold-to-peek), shown without stealing focus.
+    /// (hold-to-peek), shown without stealing focus. Animates in with a quick
+    /// fade + subtle rise (skipped under Reduce Motion).
     func show(activating: Bool) {
         model.selectForFrontmost(bundleID: NSWorkspace.shared.frontmostApplication?.bundleIdentifier)
-        centerOnActiveScreen()
+        isAnimatingOut = false
+        panel.alphaValue = 0
+
+        let target = centeredFrame()
+        let reduce = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        panel.setFrame(reduce ? target : target.offsetBy(dx: 0, dy: -10), display: false)
+
         if activating {
             NSApp.activate(ignoringOtherApps: true)
             panel.makeKeyAndOrderFront(nil)
         } else {
             panel.orderFrontRegardless()
         }
+
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = reduce ? 0.08 : 0.13
+            ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            ctx.allowsImplicitAnimation = true
+            panel.animator().alphaValue = 1
+            panel.animator().setFrame(target, display: true)
+        }
     }
 
     func hide() {
-        panel.orderOut(nil)
+        guard panel.isVisible, !isAnimatingOut else { return }
+        isAnimatingOut = true
+        let reduce = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        let end = reduce ? panel.frame : panel.frame.offsetBy(dx: 0, dy: -8)
+        NSAnimationContext.runAnimationGroup({ ctx in
+            ctx.duration = reduce ? 0.06 : 0.10
+            ctx.timingFunction = CAMediaTimingFunction(name: .easeIn)
+            panel.animator().alphaValue = 0
+            panel.animator().setFrame(end, display: true)
+        }, completionHandler: { [weak self] in
+            guard let self else { return }
+            panel.orderOut(nil)
+            panel.alphaValue = 1
+            isAnimatingOut = false
+        })
     }
 
-    private func centerOnActiveScreen() {
+    private func centeredFrame() -> NSRect {
         let screen = NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) }
             ?? NSScreen.main
-        guard let visible = screen?.visibleFrame else { return }
-        let f = panel.frame
-        panel.setFrameOrigin(NSPoint(
-            x: visible.midX - f.width / 2,
-            y: visible.midY - f.height / 2
-        ))
+        let visible = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+        let size = panel.frame.size
+        return NSRect(
+            x: visible.midX - size.width / 2,
+            y: visible.midY - size.height / 2,
+            width: size.width, height: size.height
+        )
     }
 }
