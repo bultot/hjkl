@@ -55,8 +55,8 @@ final class OverlayController {
     }
 
     /// `activating: true` → interactive (vim nav, filter). `false` → glance only
-    /// (hold-to-peek), shown without stealing focus. Animates in with a quick
-    /// fade + subtle rise (skipped under Reduce Motion).
+    /// (hold-to-peek), shown without stealing focus. Appears instantly; the
+    /// fade + rise lives only on dismiss (see hide()).
     func show(activating: Bool) {
         // Match the panel's appearance to the theme so AppKit-backed controls
         // (e.g. the search field's editor) draw readable text. System theme
@@ -67,22 +67,17 @@ final class OverlayController {
 
         let front = NSWorkspace.shared.frontmostApplication
         let bundle = front?.bundleIdentifier
-        // Process-aware: inside cmux, switch to the tool running in the focused pane.
-        if let pid = resolver.providerID(forFrontmostBundle: bundle), model.hasSheet(pid) {
-            model.select(providerID: pid)
-        } else {
-            model.selectForFrontmost(bundleID: bundle)
-        }
-        isAnimatingOut = false
-        panel.alphaValue = 0
+        // Cheap, synchronous tab pick from the frontmost app's bundle id so the
+        // panel is correct for the common case the instant it appears.
+        model.selectForFrontmost(bundleID: bundle)
 
-        let target = centeredFrame()
-        let reduce = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-        panel.setFrame(reduce ? target : target.offsetBy(dx: 0, dy: -10), display: false)
+        isAnimatingOut = false
+        panel.alphaValue = 1
+        panel.setFrame(centeredFrame(), display: false)
 
         if activating {
             // Remember who to hand focus back to (ignore ourselves on re-toggle).
-            if front?.bundleIdentifier != Bundle.main.bundleIdentifier {
+            if bundle != Bundle.main.bundleIdentifier {
                 previousApp = front
             }
             NSApp.activate(ignoringOtherApps: true)
@@ -91,13 +86,22 @@ final class OverlayController {
             panel.orderFrontRegardless()
         }
 
-        NSAnimationContext.runAnimationGroup { ctx in
-            ctx.duration = reduce ? 0.08 : 0.13
-            ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
-            ctx.allowsImplicitAnimation = true
-            panel.animator().alphaValue = 1
-            panel.animator().setFrame(target, display: true)
+        // Process-aware refinement (inside cmux) shells out to the cmux CLI, so
+        // do it off the main thread and switch tabs when it returns — the panel
+        // never waits on a subprocess.
+        if bundle == ContextResolver.cmuxBundleID {
+            let resolver = self.resolver
+            Task.detached(priority: .userInitiated) { [weak self] in
+                guard let pid = resolver.providerID(forFrontmostBundle: bundle) else { return }
+                await self?.applyResolvedProvider(pid)
+            }
         }
+    }
+
+    /// Switch to the process-aware provider once the async cmux probe returns.
+    private func applyResolvedProvider(_ pid: String) {
+        guard panel.isVisible, !isAnimatingOut, model.hasSheet(pid) else { return }
+        model.select(providerID: pid)
     }
 
     func hide() {
@@ -111,13 +115,16 @@ final class OverlayController {
             panel.animator().alphaValue = 0
             panel.animator().setFrame(end, display: true)
         }, completionHandler: { [weak self] in
-            guard let self else { return }
-            panel.orderOut(nil)
-            panel.alphaValue = 1
-            isAnimatingOut = false
-            // Hand focus back to whoever had it before we activated.
-            previousApp?.activate()
-            previousApp = nil
+            // Runs on the main thread; assert isolation to touch main-actor state.
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.panel.orderOut(nil)
+                self.panel.alphaValue = 1
+                self.isAnimatingOut = false
+                // Hand focus back to whoever had it before we activated.
+                self.previousApp?.activate()
+                self.previousApp = nil
+            }
         })
     }
 

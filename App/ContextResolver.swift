@@ -4,7 +4,7 @@ import CheatCore
 /// Resolves the provider for the current terminal context by shelling out to the
 /// cmux CLI. Only acts when the frontmost app is cmux; otherwise returns nil so
 /// the caller falls back to bundle-id matching.
-struct ContextResolver {
+struct ContextResolver: Sendable {
     static let cmuxBundleID = "com.cmuxterm.app"
 
     /// Provider id for the tool in the foreground of cmux's active pane, or nil.

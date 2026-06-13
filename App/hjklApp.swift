@@ -57,6 +57,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hk.setPeekEnabled(model.holdToPeekEnabled)
         hotkeys = hk
 
+        // Pre-warm the panel + SwiftUI host one runloop tick after launch (not
+        // during scene setup, which is unreliable) so the first hotkey press is
+        // instant instead of paying to build the overlay.
+        DispatchQueue.main.async { [weak self] in self?.ensureController() }
+
         if ProcessInfo.processInfo.environment["HJKL_SHOW_ON_LAUNCH"] != nil {
             DispatchQueue.main.async { [self] in showOverlay() }
         }
