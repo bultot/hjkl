@@ -1,0 +1,10 @@
+$schema: https://raw.githubusercontent.com/ComposioHQ/agent-orchestrator/main/schema/config.schema.json
+defaults:
+  runtime: tmux             # PTY-driven = Max-subscription-safe
+  agent: claude-code        # interactive Claude Code (no headless print flag)
+  workspace: worktree       # 1 worktree + branch + PR per Issue
+  notifiers: [ desktop ]
+reactions:
+  ci-failed: { auto: true, retries: 2 }   # AO re-spawns an agent on CI failure
+# Autonomy: false (full=auto-merge ON via GitHub; supervised=OFF, you click merge).
+# Register with: ao project add <repo-path>   (derives repo identity from the git remote).

@@ -67,3 +67,23 @@ Functionally complete and verified live by the owner. The only outstanding work
 is the notarized Developer ID release pipeline (`RELEASE.md`), which needs an
 Apple Developer ID certificate before it can run. Everything else is in
 [FUTURE.md](FUTURE.md).
+
+## Task conventions (READ BEFORE CREATING ISSUES)
+Create each task as a GitHub Issue:
+
+  gh issue create -t "<title>" -b "<description + acceptance criteria as a checklist>" \
+    -l <domain>            # exactly one of: swift | ts-web | python
+    [-l team]              # ONLY if it needs parallel specialists (~7x tokens)
+    [-l bootstrap]         # the FIRST issue of a new repo
+    [-l characterize]      # FIRST issue touching an untested module (pin current behavior)
+
+Rules:
+- One domain label per Issue -> AO routes it to the matching specialist agent.
+- Acceptance criteria are a markdown checklist in the body, mapping to REAL tests.
+  The test suite is the merge gate; the reviewer is a second net, not the gate.
+- BROWNFIELD: the FIRST Issue that touches a module must be `characterize` and write
+  tests pinning its CURRENT behavior BEFORE any change. Feature/fix Issues depend on it.
+- `bootstrap` done = scaffold + ONE real passing test + fill ci/*.sh + gate green. No features.
+- Keep Issues atomic (~2-3 changes, one fresh agent context). Order via "depends on #N".
+- DESIGN GATE (light): the planner emits a one-page design Issue per goal for your glance,
+  but feature/fix Issues are NOT blocked on approval.
