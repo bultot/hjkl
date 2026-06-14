@@ -88,15 +88,14 @@ final class OverlayController {
             panel.orderFrontRegardless()
         }
 
-        // Process-aware refinement (inside cmux) shells out to the cmux CLI, so
-        // do it off the main thread and switch tabs when it returns — the panel
-        // never waits on a subprocess.
-        if bundle == ContextResolver.cmuxBundleID {
-            let resolver = self.resolver
-            Task.detached(priority: .userInitiated) { [weak self] in
-                guard let pid = resolver.providerID(forFrontmostBundle: bundle) else { return }
-                await self?.applyResolvedProvider(pid)
-            }
+        // Process-aware refinement shells out to a terminal CLI (cmux's pane probe
+        // or `tmux list-clients`), so do it off the main thread and switch tabs when
+        // it returns — the panel never waits on a subprocess. The resolver returns
+        // nil for non-terminal apps, so the detached probe is cheap there.
+        let resolver = self.resolver
+        Task.detached(priority: .userInitiated) { [weak self] in
+            guard let pid = resolver.providerID(forFrontmostBundle: bundle) else { return }
+            await self?.applyResolvedProvider(pid)
         }
     }
 

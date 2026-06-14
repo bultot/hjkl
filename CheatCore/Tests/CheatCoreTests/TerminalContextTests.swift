@@ -58,4 +58,39 @@ struct TerminalContextTests {
         #expect(TerminalContext.classify(["/bin/zsh"]) == "zsh")
         #expect(TerminalContext.classify(["/usr/bin/caffeinate"]) == nil)
     }
+
+    // MARK: - tmux client detection
+
+    @Test("known terminal + tmux attached → tmux", arguments: [
+        "com.mitchellh.ghostty",   // Ghostty
+        "com.googlecode.iterm2",   // iTerm2
+        "com.apple.Terminal",      // Terminal.app
+        "org.alacritty",           // Alacritty
+        "net.kovidgoyal.kitty",    // kitty
+        "com.github.wez.wezterm",  // WezTerm
+    ])
+    func tmuxInKnownTerminal(bundle: String) {
+        #expect(TerminalContext.terminalProviderID(frontmostBundleID: bundle, tmuxAttached: true) == "tmux")
+    }
+
+    @Test("known terminal but no tmux client → nil")
+    func terminalWithoutTmux() {
+        #expect(TerminalContext.terminalProviderID(frontmostBundleID: "com.mitchellh.ghostty", tmuxAttached: false) == nil)
+    }
+
+    @Test("non-terminal app → nil regardless of tmux")
+    func nonTerminal() {
+        #expect(TerminalContext.terminalProviderID(frontmostBundleID: "com.apple.Safari", tmuxAttached: true) == nil)
+        #expect(TerminalContext.terminalProviderID(frontmostBundleID: "com.apple.Safari", tmuxAttached: false) == nil)
+    }
+
+    @Test("cmux bundle → nil so the cmux probe keeps precedence")
+    func cmuxKeepsPrecedence() {
+        #expect(TerminalContext.terminalProviderID(frontmostBundleID: "com.cmuxterm.app", tmuxAttached: true) == nil)
+    }
+
+    @Test("nil bundle → nil")
+    func nilBundle() {
+        #expect(TerminalContext.terminalProviderID(frontmostBundleID: nil, tmuxAttached: true) == nil)
+    }
 }
