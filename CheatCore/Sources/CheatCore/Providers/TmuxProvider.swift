@@ -245,27 +245,37 @@ public struct TmuxProvider: ShortcutProvider {
                 Shortcut(keys: pk("?"), action: "List all key bindings", essential: true),
                 Shortcut(keys: pk("T"), action: "Show clock"),
             ]),
-            // Raw shell commands, not prefix-then-key bindings. The tmux sheet is
-            // shown while sitting in a shell, so surfacing the everyday commands
-            // people forget is useful in the same tab. `keys` holds the command
-            // text verbatim; do NOT run these through `pk()` / the prefix.
-            Section(title: "Common commands", shortcuts: [
-                Shortcut(keys: "find . -name '*.swift'", action: "Find files by name", essential: true),
-                Shortcut(keys: "grep -rn 'pat' .", action: "Recursive search with line numbers", essential: true),
-                Shortcut(keys: "tar -xzf file.tgz", action: "Extract a gzipped tarball", essential: true),
-                Shortcut(keys: "tar -czf out.tgz dir/", action: "Create a gzipped tarball"),
-                Shortcut(keys: "ps aux | grep proc", action: "Find a running process"),
-                Shortcut(keys: "lsof -i :PORT", action: "See what's using a port"),
-                Shortcut(keys: "kill -9 PID", action: "Force-kill a process", essential: true),
-                Shortcut(keys: "chmod +x file", action: "Make a file executable"),
-                Shortcut(keys: "chmod 755 file", action: "Set file permissions"),
-                Shortcut(keys: "chown user:group file", action: "Change file owner"),
-                Shortcut(keys: "ln -s target link", action: "Create a symlink"),
-                Shortcut(keys: "du -sh *", action: "Size of each item here"),
-                Shortcut(keys: "df -h", action: "Disk space, human-readable"),
-                Shortcut(keys: "curl -sSL url -o file", action: "Quiet download to a file"),
-                Shortcut(keys: "sed -i '' 's/a/b/g' file", action: "In-place find and replace"),
-                Shortcut(keys: "ls | xargs -n1 cmd", action: "Run a command per input line"),
+            // tmux's own CLI commands: the `tmux <subcommand>` invocations for
+            // driving tmux from the shell. The tmux sheet is shown while sitting
+            // in a shell, so these belong in the same tab. `keys` holds the
+            // command text verbatim; these are raw commands, not prefix-then-key
+            // bindings, so do NOT run them through `pk()` / the prefix.
+            Section(title: "CLI: sessions & windows", shortcuts: [
+                Shortcut(keys: "tmux new -s <name>", action: "Create a named session", essential: true),
+                Shortcut(keys: "tmux attach -t <name>", action: "Attach to a session", essential: true),
+                Shortcut(keys: "tmux detach", action: "Detach from the current session"),
+                Shortcut(keys: "tmux ls", action: "List sessions", essential: true),
+                Shortcut(keys: "tmux kill-session -t <name>", action: "Kill a session"),
+                Shortcut(keys: "tmux switch-client -t <name>", action: "Switch attached client to a session"),
+                Shortcut(keys: "tmux new-window -n <name>", action: "Create a new window"),
+                Shortcut(keys: "tmux select-window -t <n>", action: "Switch to a window"),
+                Shortcut(keys: "tmux rename-window <name>", action: "Rename the current window"),
+                Shortcut(keys: "tmux list-windows", action: "List windows in the session"),
+                Shortcut(keys: "tmux kill-window", action: "Kill the current window"),
+            ]),
+            Section(title: "CLI: panes & control", shortcuts: [
+                Shortcut(keys: "tmux split-window -h", action: "Split left / right"),
+                Shortcut(keys: "tmux split-window -v", action: "Split top / bottom"),
+                Shortcut(keys: "tmux select-pane -t <n>", action: "Focus a pane"),
+                Shortcut(keys: "tmux resize-pane -D 5", action: "Resize pane (-D/-U/-L/-R)"),
+                Shortcut(keys: "tmux kill-pane", action: "Kill the current pane"),
+                Shortcut(keys: "tmux list-panes -a", action: "List all panes across windows"),
+                Shortcut(keys: "tmux send-keys -t <t> \"cmd\" C-m", action: "Send keys + Enter to a pane", essential: true),
+                Shortcut(keys: "tmux setw synchronize-panes on", action: "Mirror input to all panes in the window"),
+                Shortcut(keys: "tmux display-message -p '#S'", action: "Print the session name"),
+                Shortcut(keys: "tmux source-file ~/.tmux.conf", action: "Reload the config", essential: true),
+                Shortcut(keys: "tmux run-shell 'command'", action: "Run a shell command in the background"),
+                Shortcut(keys: "tmux respawn-window -k", action: "Respawn a window (restart its apps)"),
             ]),
         ]
     }
