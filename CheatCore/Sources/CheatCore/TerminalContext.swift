@@ -24,6 +24,33 @@ public enum TerminalContext {
         return classify(paths)
     }
 
+    /// Bundle IDs of terminal emulators that can host a tmux client. Verified
+    /// against each app's real bundle identifier. cmux is deliberately absent:
+    /// it has its own process-aware probe that must keep precedence.
+    public static let knownTerminalBundleIDs: Set<String> = [
+        "com.mitchellh.ghostty",  // Ghostty
+        "com.googlecode.iterm2",  // iTerm2
+        "com.apple.Terminal",     // Terminal.app
+        "org.alacritty",          // Alacritty
+        "net.kovidgoyal.kitty",   // kitty
+        "com.github.wez.wezterm", // WezTerm
+    ]
+
+    /// Decide whether to resolve to tmux based on the frontmost app and whether a
+    /// tmux client is attached anywhere. Returns "tmux" only when a tmux client is
+    /// attached AND the frontmost app is a known terminal emulator; nil otherwise
+    /// (caller then falls back to bundle-id matching / the cmux probe). cmux is
+    /// excluded so its pane-aware probe keeps precedence.
+    ///
+    /// Detection is coarse: `tmuxAttached` means a client is attached somewhere,
+    /// not necessarily in the frontmost window. The accepted false positive is a
+    /// non-tmux terminal being frontmost while tmux runs in another window.
+    public static func terminalProviderID(frontmostBundleID: String?, tmuxAttached: Bool) -> String? {
+        guard tmuxAttached, let bundle = frontmostBundleID,
+              knownTerminalBundleIDs.contains(bundle) else { return nil }
+        return "tmux"
+    }
+
     /// Map a set of foreground executable paths to a provider id. Order matters:
     /// check specific tools before the generic shell.
     static func classify(_ paths: [String]) -> String? {
