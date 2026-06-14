@@ -92,6 +92,7 @@ public final class SettingsStore: @unchecked Sendable {
            let decoded = try? JSONDecoder().decode(HjklSettings.self, from: data) {
             settings = decoded
             seed(from: .defaults)
+            save()   // persist newly merged-in providers (e.g. a freshly added tool)
         } else {
             seed(from: .defaults)
             save()

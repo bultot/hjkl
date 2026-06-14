@@ -14,7 +14,8 @@ public struct NeovimProvider: ShortcutProvider {
     public let displayName = "Neovim"
     public let symbol = "doc.text"
     public let matchBundleIDs: [String] = []
-    public let alwaysAvailable = true
+    public let alwaysAvailable = false
+    public let executableNames = ["nvim"]
     public var defaultConfigPath: URL? { homePath(".config/nvim") }
 
     /// Always returns the curated defaults. A missing config directory is not an

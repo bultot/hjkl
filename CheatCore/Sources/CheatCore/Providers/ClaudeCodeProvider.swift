@@ -12,7 +12,8 @@ public struct ClaudeCodeProvider: ShortcutProvider {
     public let displayName = "Claude Code"
     public let symbol = "sparkles"
     public let matchBundleIDs: [String] = []
-    public let alwaysAvailable = true
+    public let alwaysAvailable = false
+    public let executableNames = ["claude"]
     public var defaultConfigPath: URL? { homePath(".claude/keybindings.json") }
 
     public func load(configPath: URL?) throws -> ShortcutSheet {

@@ -10,7 +10,9 @@ public struct AeroSpaceProvider: ShortcutProvider {
     public let displayName = "AeroSpace"
     public let symbol = "macwindow.on.rectangle"
     public let matchBundleIDs: [String] = []
-    public let alwaysAvailable = true
+    public let alwaysAvailable = false
+    public let executableNames = ["aerospace"]
+    public let appBundleNames = ["AeroSpace"]
     public var defaultConfigPath: URL? { homePath(".config/aerospace/aerospace.toml") }
 
     public func load(configPath: URL?) throws -> ShortcutSheet {

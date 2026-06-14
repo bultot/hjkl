@@ -32,6 +32,10 @@ public protocol ShortcutProvider: Sendable {
     var alwaysAvailable: Bool { get }
     /// Default location of the tool's config (used for auto-detect/seed).
     var defaultConfigPath: URL? { get }
+    /// CLI binaries that signal the tool is installed (looked up on PATH).
+    var executableNames: [String] { get }
+    /// `.app` bundle names that signal the tool is installed (in /Applications).
+    var appBundleNames: [String] { get }
 
     /// Parse the config at `configPath` (or `defaultConfigPath` when nil) into a sheet.
     func load(configPath: URL?) throws -> ShortcutSheet
@@ -41,6 +45,8 @@ public extension ShortcutProvider {
     var symbol: String { "keyboard" }
     var matchBundleIDs: [String] { [] }
     var alwaysAvailable: Bool { false }
+    var executableNames: [String] { [] }
+    var appBundleNames: [String] { [] }
 
     /// Resolve the path to read: explicit override, else the provider default.
     func resolvedPath(_ configPath: URL?) throws -> URL {
@@ -53,10 +59,14 @@ public extension ShortcutProvider {
         return url
     }
 
-    /// True when this provider's config exists on disk (drives first-run seeding).
+    /// True when the tool is present: its config exists, or its binary is on PATH,
+    /// or its `.app` is installed. Drives tab visibility and first-run seeding —
+    /// a provider whose tool isn't installed never shows a tab.
     var isInstalled: Bool {
-        guard let p = defaultConfigPath else { return false }
-        return FileManager.default.fileExists(atPath: p.path)
+        if let p = defaultConfigPath, FileManager.default.fileExists(atPath: p.path) { return true }
+        if Installation.hasExecutable(executableNames) { return true }
+        if Installation.hasApp(appBundleNames) { return true }
+        return false
     }
 }
 

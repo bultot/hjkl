@@ -23,7 +23,7 @@ what's next. This file is the working guide for making changes.
 xcodegen generate
 xcodebuild -project hjkl.xcodeproj -scheme hjkl -configuration Debug \
   -derivedDataPath build CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO build
-cd CheatCore && swift test   # 51 tests / 13 suites, keep green
+cd CheatCore && swift test   # 66 tests / 15 suites, keep green
 ```
 
 `project.yml` is the source of truth for the Xcode project; edit it, not the

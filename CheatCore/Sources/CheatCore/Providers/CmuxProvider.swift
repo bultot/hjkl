@@ -9,6 +9,8 @@ public struct CmuxProvider: ShortcutProvider {
     public let symbol = "rectangle.split.2x1"
     public let matchBundleIDs = ["com.cmuxterm.app"]
     public let alwaysAvailable = false
+    public let executableNames = ["cmux"]
+    public let appBundleNames = ["cmux"]
     public var defaultConfigPath: URL? { homePath(".config/cmux/cmux.json") }
 
     public func load(configPath: URL?) throws -> ShortcutSheet {

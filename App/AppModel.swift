@@ -28,9 +28,11 @@ final class AppModel {
 
     // MARK: providers / sheets
 
-    /// Providers the user has enabled in Settings.
+    /// Providers the user has enabled in Settings whose tool is actually installed.
+    /// An enabled-but-uninstalled provider never surfaces a tab (stale settings,
+    /// uninstalled tool), keeping the sheet honest about what's on the machine.
     var enabledProviders: [any ShortcutProvider] {
-        registry.providers.filter { store.entry($0.id)?.enabled ?? false }
+        registry.providers.filter { (store.entry($0.id)?.enabled ?? false) && $0.isInstalled }
     }
 
     private func configURL(for provider: any ShortcutProvider) -> URL? {

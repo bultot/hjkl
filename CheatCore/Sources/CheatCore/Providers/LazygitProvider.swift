@@ -13,7 +13,8 @@ public struct LazygitProvider: ShortcutProvider {
     public let displayName = "lazygit"
     public let symbol = "arrow.triangle.branch"
     public let matchBundleIDs: [String] = []
-    public let alwaysAvailable = true
+    public let alwaysAvailable = false
+    public let executableNames = ["lazygit"]
     public var defaultConfigPath: URL? { homePath(".config/lazygit/config.yml") }
 
     public func load(configPath: URL?) throws -> ShortcutSheet {

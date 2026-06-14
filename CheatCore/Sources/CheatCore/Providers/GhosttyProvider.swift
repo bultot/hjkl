@@ -14,7 +14,9 @@ public struct GhosttyProvider: ShortcutProvider {
     public let displayName = "Ghostty"
     public let symbol = "terminal"
     public let matchBundleIDs = ["com.mitchellh.ghostty"]
-    public let alwaysAvailable = true
+    public let alwaysAvailable = false
+    public let executableNames = ["ghostty"]
+    public let appBundleNames = ["Ghostty"]
     public var defaultConfigPath: URL? { homePath(".config/ghostty/config") }
 
     public func load(configPath: URL?) throws -> ShortcutSheet {

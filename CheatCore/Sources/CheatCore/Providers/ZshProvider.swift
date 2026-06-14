@@ -9,7 +9,8 @@ public struct ZshProvider: ShortcutProvider {
     public let displayName = "zsh"
     public let symbol = "chevron.left.forwardslash.chevron.right"
     public let matchBundleIDs: [String] = []
-    public let alwaysAvailable = true
+    public let alwaysAvailable = false
+    public let executableNames = ["zsh"]
     public var defaultConfigPath: URL? { homePath(".config/zsh/functions.zsh") }
 
     public func load(configPath: URL?) throws -> ShortcutSheet {
