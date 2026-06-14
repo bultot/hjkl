@@ -1,3 +1,7 @@
 #!/usr/bin/env bash
-set -e
-echo "TODO(test): domains: swift"
+set -euo pipefail
+
+# Run the CheatCore unit tests. This is the merge gate.
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$repo_root/CheatCore"
+swift test
