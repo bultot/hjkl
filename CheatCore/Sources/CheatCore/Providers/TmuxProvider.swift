@@ -245,6 +245,28 @@ public struct TmuxProvider: ShortcutProvider {
                 Shortcut(keys: pk("?"), action: "List all key bindings", essential: true),
                 Shortcut(keys: pk("T"), action: "Show clock"),
             ]),
+            // Raw shell commands, not prefix-then-key bindings. The tmux sheet is
+            // shown while sitting in a shell, so surfacing the everyday commands
+            // people forget is useful in the same tab. `keys` holds the command
+            // text verbatim; do NOT run these through `pk()` / the prefix.
+            Section(title: "Common commands", shortcuts: [
+                Shortcut(keys: "find . -name '*.swift'", action: "Find files by name", essential: true),
+                Shortcut(keys: "grep -rn 'pat' .", action: "Recursive search with line numbers", essential: true),
+                Shortcut(keys: "tar -xzf file.tgz", action: "Extract a gzipped tarball", essential: true),
+                Shortcut(keys: "tar -czf out.tgz dir/", action: "Create a gzipped tarball"),
+                Shortcut(keys: "ps aux | grep proc", action: "Find a running process"),
+                Shortcut(keys: "lsof -i :PORT", action: "See what's using a port"),
+                Shortcut(keys: "kill -9 PID", action: "Force-kill a process", essential: true),
+                Shortcut(keys: "chmod +x file", action: "Make a file executable"),
+                Shortcut(keys: "chmod 755 file", action: "Set file permissions"),
+                Shortcut(keys: "chown user:group file", action: "Change file owner"),
+                Shortcut(keys: "ln -s target link", action: "Create a symlink"),
+                Shortcut(keys: "du -sh *", action: "Size of each item here"),
+                Shortcut(keys: "df -h", action: "Disk space, human-readable"),
+                Shortcut(keys: "curl -sSL url -o file", action: "Quiet download to a file"),
+                Shortcut(keys: "sed -i '' 's/a/b/g' file", action: "In-place find and replace"),
+                Shortcut(keys: "ls | xargs -n1 cmd", action: "Run a command per input line"),
+            ]),
         ]
     }
 }

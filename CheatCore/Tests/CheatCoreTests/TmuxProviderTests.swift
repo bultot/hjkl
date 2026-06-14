@@ -79,4 +79,26 @@ struct TmuxProviderTests {
     func registeredInRegistry() {
         #expect(ProviderRegistry.defaults.provider(id: "tmux") != nil)
     }
+
+    @Test("Sheet has a Common commands section of raw, unprefixed shell commands")
+    func commonCommandsSection() throws {
+        let sheet = try TmuxProvider().load(configPath: fixtureURL)
+        let common = sheet.sections.first { $0.title == "Common commands" }
+        #expect(common != nil)
+
+        // A reasonable number of entries.
+        #expect((common?.shortcuts.count ?? 0) >= 10)
+
+        // These are raw commands, not prefix-then-key pairs: no entry starts
+        // with the tmux prefix (default ⌃B or the fixture's rebound ⌃A).
+        let prefixed = common?.shortcuts.contains { $0.keys.hasPrefix("⌃B ") || $0.keys.hasPrefix("⌃A ") }
+        #expect(prefixed == false)
+
+        // A representative command is present.
+        let find = common?.shortcuts.first { $0.keys.hasPrefix("find . -name") }
+        #expect(find != nil)
+
+        // At least one entry is flagged essential.
+        #expect(common?.shortcuts.contains { $0.essential } == true)
+    }
 }
