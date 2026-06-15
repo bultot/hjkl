@@ -19,12 +19,13 @@ or custom).
 
 ## What it shows
 
-Seven providers ship today, each reading the tool's real config:
+Eight providers ship today, each reading the tool's real config:
 
 | Provider | Reads | Notes |
 |----------|-------|-------|
 | cmux | terminal multiplexer config | also drives process-aware switching (below) |
 | AeroSpace | `~/.aerospace.toml` | window manager, always shown as a tab |
+| skhd | `~/.config/skhd/skhdrc` | hotkey daemon (drives yabai), shown as a tab |
 | Claude Code | settings / keybindings | |
 | Ghostty | Ghostty config | terminal |
 | lazygit | lazygit config | |
