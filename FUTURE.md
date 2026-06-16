@@ -44,6 +44,12 @@ Process-aware switching already works inside the multiplexer. Extensions:
   current mode, not a flat list.
 - Recently-used ranking: track which shortcuts the user actually opens the sheet
   to look up and float those, per provider.
+- **Configurable context priority.** When several providers are nested (Ghostty
+  hosting tmux hosting Claude Code), the resolver currently has a fixed
+  precedence (cmux pane probe > attached tmux > frontmost bundle). Expose this in
+  Settings as a user-ordered priority list so the user decides which tab wins
+  when more than one matches. Default to the current order; the resolver reads
+  the configured order instead of the hardcoded one.
 
 ## UX polish
 
@@ -54,6 +60,11 @@ Process-aware switching already works inside the multiplexer. Extensions:
   expose a field to point a provider at a non-standard path.
 - **Custom sheets:** let users hand-author a sheet (YAML/JSON) for a tool that
   has no parser yet, so coverage isn't gated on writing Swift.
+- **Hide learned shortcuts.** Let the user dismiss a shortcut they already know
+  so it drops out of the sheet, reducing noise over time. Reversible: store the
+  hidden set in Settings keyed by provider + shortcut id (`keys\u{1}action`), add
+  a per-row affordance to hide, and a Settings section to review and restore.
+  Optionally a toggle to show hidden ones dimmed instead of removing them.
 - **Pinning / favorites:** a user-curated "my essentials" tab across tools.
 - **More themes**, and honoring the system accent color.
 
