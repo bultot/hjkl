@@ -68,6 +68,9 @@ final class OverlayController {
             ? nil
             : NSAppearance(named: model.theme.isDark ? .darkAqua : .aqua)
 
+        // Each session starts ready to type: empty query, current-app scope.
+        model.resetSearch()
+
         let front = NSWorkspace.shared.frontmostApplication
         let bundle = front?.bundleIdentifier
         // Cheap, synchronous tab pick from the frontmost app's bundle id so the

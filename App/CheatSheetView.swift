@@ -1,9 +1,10 @@
 import SwiftUI
 import CheatCore
 
-/// The overlay content: app tabs and the selected provider's shortcuts when
-/// browsing; a global search across every enabled app when `/` is pressed.
-/// Fully keyboard-driven (vim keys + arrows).
+/// The overlay content: app tabs and the selected app's shortcuts. Typing filters
+/// the selected app immediately; `/` escalates the same query to a search across
+/// every enabled app. Fully keyboard-driven: arrows move and switch apps, every
+/// other key feeds the always-focused search field.
 struct CheatSheetView: View {
     @Bindable var model: AppModel
     let onClose: () -> Void
@@ -13,38 +14,41 @@ struct CheatSheetView: View {
     /// resetting to 0 (used when Enter jumps from a search hit into its app).
     @State private var pendingTarget: String? = nil
 
-    /// Where keyboard focus lives. Kept on exactly one of these so the panel's
-    /// key handler keeps working after the search field is dismissed.
+    /// Where keyboard focus lives. The search field holds focus so typing always
+    /// works; the panel stays focusable so its key handler keeps receiving events.
     private enum Field: Hashable { case panel, search }
     @FocusState private var focus: Field?
 
-    private var isSearching: Bool { focus == .search }
+    private var isGlobal: Bool { model.globalSearch }
+    private var hasQuery: Bool { !model.filter.trimmingCharacters(in: .whitespaces).isEmpty }
     private var sheet: ShortcutSheet? { model.selectedSheet }
+    private var appTitle: String { sheet?.title ?? "this app" }
 
-    // Browse mode: the selected sheet's full sections.
-    private var browseSections: [CheatCore.Section] { sheet?.sections ?? [] }
-    private var browseFlat: [(sid: String, sc: Shortcut)] {
-        browseSections.flatMap { s in s.shortcuts.map { (s.id, $0) } }
+    // Current-app view: the selected sheet's sections, narrowed to the query
+    // (the full sheet when the query is blank).
+    private var appSections: [CheatCore.Section] { model.currentAppSections }
+    private var appFlat: [(sid: String, sc: Shortcut)] {
+        appSections.flatMap { s in s.shortcuts.map { (s.id, $0) } }
     }
 
-    // Search mode: matches across all enabled sheets, grouped by app.
+    // Global search: matches across all enabled sheets, grouped by app.
     private var searchGroups: [SearchGroup] { model.searchGroups }
     private var searchFlat: [SearchHit] { searchGroups.flatMap { $0.hits } }
 
-    private var navCount: Int { isSearching ? searchFlat.count : browseFlat.count }
+    private var navCount: Int { isGlobal ? searchFlat.count : appFlat.count }
 
     private func rowID(_ sid: String, _ sc: Shortcut) -> String { sid + "\u{1}" + sc.id }
 
-    private var selectedBrowseRowID: String? {
-        guard browseFlat.indices.contains(selection) else { return nil }
-        let f = browseFlat[selection]
+    private var selectedAppRowID: String? {
+        guard appFlat.indices.contains(selection) else { return nil }
+        let f = appFlat[selection]
         return rowID(f.sid, f.sc)
     }
     private var selectedHitID: String? {
         guard searchFlat.indices.contains(selection) else { return nil }
         return searchFlat[selection].id
     }
-    private var scrollTargetID: String? { isSearching ? selectedHitID : selectedBrowseRowID }
+    private var scrollTargetID: String? { isGlobal ? selectedHitID : selectedAppRowID }
 
     /// The opaque cheat-sheet card. The window is larger than this by
     /// `shadowMargin` on every side so the Raycast-style soft shadow has room
@@ -84,13 +88,15 @@ struct CheatSheetView: View {
         .onKeyPress(phases: .down) { handleKey($0, palette: p) }
         .onChange(of: model.selectedID) { applyPendingOrReset() }
         .onChange(of: model.filter) { applyPendingOrReset() }
-        .onAppear { focus = .panel }
+        .onChange(of: model.globalSearch) { selection = 0 }
+        // Keep focus on the search field so the user can type immediately.
+        .onAppear { focus = .search }
     }
 
     /// Resolve a pending jump target to its row index, otherwise reset selection.
     private func applyPendingOrReset() {
         if let t = pendingTarget,
-           let idx = browseFlat.firstIndex(where: { rowID($0.sid, $0.sc) == t }) {
+           let idx = appFlat.firstIndex(where: { rowID($0.sid, $0.sc) == t }) {
             selection = idx
             pendingTarget = nil
         } else if pendingTarget == nil {
@@ -103,11 +109,11 @@ struct CheatSheetView: View {
     @ViewBuilder private func header(_ p: Palette) -> some View {
         VStack(spacing: 10) {
             HStack(spacing: 8) {
-                Image(systemName: isSearching ? "magnifyingglass" : (sheet?.symbol ?? "keyboard"))
+                Image(systemName: isGlobal ? "magnifyingglass" : (sheet?.symbol ?? "keyboard"))
                     .foregroundStyle(p.accent)
-                Text(isSearching ? "Search" : (sheet?.title ?? "hjkl"))
+                Text(isGlobal ? "All apps" : appTitle)
                     .font(.title3.weight(.semibold))
-                if isSearching, !model.filter.isEmpty {
+                if isGlobal, hasQuery {
                     Text("\(model.searchHitCount) across \(searchGroups.count)")
                         .font(.caption).foregroundStyle(p.textSecondary)
                 }
@@ -122,41 +128,42 @@ struct CheatSheetView: View {
     }
 
     @ViewBuilder private func searchField(_ p: Palette) -> some View {
+        let active = isGlobal || hasQuery
         HStack(spacing: 6) {
             Image(systemName: "magnifyingglass").font(.caption).foregroundStyle(p.textSecondary)
-            TextField("Search all apps (/)", text: $model.filter)
+            TextField(isGlobal ? "Search all apps…" : "Search \(appTitle)  ·  / all apps",
+                      text: $model.filter)
                 .textFieldStyle(.plain)
                 .foregroundStyle(p.textPrimary)
                 .tint(p.accent)
-                .frame(width: 220)
+                .frame(width: 260)
                 .focused($focus, equals: .search)
-                .onSubmit { jumpToSelectedHit() }
+                .onSubmit { if isGlobal { jumpToSelectedHit() } }
                 // The focused NSTextField field editor swallows Escape before it
                 // reaches the panel's .onKeyPress, so handle it here directly.
-                .onExitCommand {
-                    if model.filter.isEmpty { exitSearch() } else { model.filter = "" }
-                }
+                .onExitCommand { handleEscape() }
         }
         .padding(.horizontal, 10).padding(.vertical, 6)
         .background(p.surface, in: Capsule())
-        .overlay(Capsule().strokeBorder(isSearching ? p.accent.opacity(0.5) : .clear))
+        .overlay(Capsule().strokeBorder(active ? p.accent.opacity(0.5) : .clear))
     }
 
     @ViewBuilder private func tabBar(_ p: Palette) -> some View {
         HStack(spacing: 6) {
-            ForEach(Array(model.sheets.enumerated()), id: \.element.id) { idx, s in
-                let active = !isSearching && s.id == model.selectedID
+            ForEach(Array(model.sheets.enumerated()), id: \.element.id) { _, s in
+                let active = !isGlobal && s.id == model.selectedID
                 HStack(spacing: 5) {
                     Image(systemName: s.symbol ?? "keyboard").font(.caption2)
                     Text(s.title).font(.callout.weight(active ? .semibold : .regular))
-                    Text("\(idx + 1)").font(.caption2.monospaced()).opacity(0.5)
                 }
                 .padding(.horizontal, 10).padding(.vertical, 5)
                 .foregroundStyle(active ? p.keycapText : p.textSecondary)
                 .background(active ? p.accent.opacity(0.22) : p.surface, in: Capsule())
                 .overlay(Capsule().strokeBorder(active ? p.accent.opacity(0.5) : .clear))
                 .contentShape(Capsule())
-                .onTapGesture { focus = .panel; model.selectTab(index: idx) }
+                .onTapGesture { if let i = model.sheets.firstIndex(where: { $0.id == s.id }) {
+                    model.selectTab(index: i); selection = 0
+                } }
             }
             Spacer()
         }
@@ -167,10 +174,10 @@ struct CheatSheetView: View {
     @ViewBuilder private func content(_ p: Palette) -> some View {
         ScrollViewReader { proxy in
             ScrollView {
-                if isSearching {
+                if isGlobal {
                     searchContent(p)
                 } else {
-                    browseContent(p)
+                    appContent(p)
                 }
             }
             .onChange(of: selection) {
@@ -181,7 +188,7 @@ struct CheatSheetView: View {
     }
 
     @ViewBuilder private func searchContent(_ p: Palette) -> some View {
-        if model.filter.trimmingCharacters(in: .whitespaces).isEmpty {
+        if !hasQuery {
             placeholder("Type to search \(model.sheets.count) apps…", p)
         } else if searchGroups.isEmpty {
             placeholder("No matches for “\(model.filter)”.", p)
@@ -191,13 +198,14 @@ struct CheatSheetView: View {
         }
     }
 
-    @ViewBuilder private func browseContent(_ p: Palette) -> some View {
-        if browseSections.isEmpty {
-            placeholder("No shortcuts.", p)
+    @ViewBuilder private func appContent(_ p: Palette) -> some View {
+        if appSections.isEmpty {
+            placeholder(hasQuery ? "No matches in \(appTitle) for “\(model.filter)”.  Press / to search all apps."
+                                 : "No shortcuts.", p)
         } else {
             SheetColumnsView(
-                sections: browseSections, palette: p,
-                columns: columnCount(for: browseSections), selectedRowID: selectedBrowseRowID
+                sections: appSections, palette: p,
+                columns: columnCount(for: appSections), selectedRowID: selectedAppRowID
             )
             .padding(18)
         }
@@ -214,17 +222,23 @@ struct CheatSheetView: View {
 
     @ViewBuilder private func footer(_ p: Palette) -> some View {
         HStack(spacing: 14) {
-            if isSearching {
+            if isGlobal {
                 hint("↑ ↓", "move", p); hint("⏎", "open", p); hint("esc", "back", p)
             } else {
-                hint("h l", "tabs", p); hint("j k", "move", p); hint("/", "search", p); hint("esc", "close", p)
+                hint("↑ ↓", "move", p); hint("← →", "apps", p)
+                hint("/", "all apps", p); hint("esc", hasQuery ? "clear" : "close", p)
             }
             Spacer()
-            Text(isSearching ? "\(model.searchHitCount) matches" : "\(sheet?.count ?? 0) shortcuts")
-                .font(.caption2).foregroundStyle(p.textSecondary)
+            Text(footerCount).font(.caption2).foregroundStyle(p.textSecondary)
         }
         .padding(.horizontal, 18).padding(.vertical, 9)
         .background(p.surface.opacity(0.5))
+    }
+
+    private var footerCount: String {
+        if isGlobal { return "\(model.searchHitCount) matches" }
+        if hasQuery { return "\(appFlat.count) matches" }
+        return "\(sheet?.count ?? 0) shortcuts"
     }
 
     @ViewBuilder private func hint(_ k: String, _ label: String, _ p: Palette) -> some View {
@@ -237,61 +251,48 @@ struct CheatSheetView: View {
     // MARK: keyboard
 
     private func handleKey(_ press: KeyPress, palette p: Palette) -> KeyPress.Result {
-        // While the search field has focus, intercept only navigation; typing
-        // (and everything else) falls through to the TextField.
-        if isSearching {
-            switch press.key {
-            case .escape:
-                if model.filter.isEmpty { exitSearch() } else { model.filter = "" }
-                return .handled
-            case .upArrow: move(-1); return .handled
-            case .downArrow: move(1); return .handled
-            case .return: jumpToSelectedHit(); return .handled
-            default: return .ignored
-            }
-        }
-
         switch press.key {
         case .escape:
-            onClose(); return .handled
+            handleEscape(); return .handled
         case .leftArrow:
-            model.selectNextTab(-1); return .handled
+            switchApp(-1); return .handled
         case .rightArrow:
-            model.selectNextTab(1); return .handled
+            switchApp(1); return .handled
         case .upArrow:
             move(-1); return .handled
         case .downArrow:
             move(1); return .handled
+        case .return:
+            if isGlobal { jumpToSelectedHit() }
+            return .handled
         default:
             break
         }
 
-        switch press.characters {
-        case "q": onClose(); return .handled
-        case "/": enterSearch(); return .handled
-        case "h": model.selectNextTab(-1); return .handled
-        case "l": model.selectNextTab(1); return .handled
-        case "j": move(1); return .handled
-        case "k": move(-1); return .handled
-        case "g": selection = 0; return .handled
-        case "G": selection = max(0, navCount - 1); return .handled
-        case let s where s.count == 1 && s >= "1" && s <= "9":
-            model.selectTab(index: Int(s)! - 1); return .handled
-        default:
-            return .ignored
+        // `/` escalates the current query to an all-apps search. Everything else
+        // (letters, digits, backspace, …) falls through to the search field.
+        if press.characters == "/" {
+            if !isGlobal { model.globalSearch = true; selection = 0 }
+            return .handled
         }
+        return .ignored
     }
 
-    private func enterSearch() {
-        pendingTarget = nil
+    /// Escape ladder: clear the query (back to browsing the app), then close.
+    private func handleEscape() {
+        if hasQuery {
+            model.filter = ""
+            model.globalSearch = false
+        } else if isGlobal {
+            model.globalSearch = false
+        } else {
+            onClose()
+        }
         selection = 0
-        focus = .search
     }
 
-    private func exitSearch() {
-        focus = .panel
-        pendingTarget = nil
-        model.filter = ""
+    private func switchApp(_ delta: Int) {
+        model.selectNextTab(delta)
         selection = 0
     }
 
@@ -300,8 +301,7 @@ struct CheatSheetView: View {
         guard searchFlat.indices.contains(selection) else { return }
         let hit = searchFlat[selection]
         pendingTarget = rowID(hit.sectionTitle, hit.shortcut)
-        focus = .panel
-        model.select(providerID: hit.sheetID)   // sets selectedID + clears filter → applyPendingOrReset
+        model.select(providerID: hit.sheetID)   // sets selectedID + resets search → applyPendingOrReset
     }
 
     private func move(_ delta: Int) {

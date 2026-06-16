@@ -41,10 +41,12 @@ with emphasis.
   the KeyboardShortcuts framework).
 - **Hold-to-peek (optional):** hold `⌥` to peek while held. Off by default;
   needs Accessibility permission, toggle it on in Settings.
-- **Navigation:** vim keys move around. Tabs switch between tools.
-- **Search:** `/` searches every shortcut across all providers at once, grouped
-  by app. `↑`/`↓` walk the hits, `⏎` jumps to the matching tab and scrolls to
-  the shortcut, `esc` clears then exits.
+- **Type to search:** start typing the moment the overlay opens and it filters
+  the current app's shortcuts. `←`/`→` switch apps (the query carries over so you
+  can scan the same term across tools), `↑`/`↓` walk the matches.
+- **Search everything:** press `/` to escalate the same query to a search across
+  every provider at once, grouped by app. `⏎` jumps to the matching tab and
+  scrolls to the shortcut. `esc` clears the query, then closes.
 - **Context aware:** the overlay opens on the tab for the app you're in. Inside a
   terminal it goes further: it probes the multiplexer to see the foreground
   process and opens on lazygit / Neovim / Claude Code / zsh accordingly, then

@@ -83,3 +83,54 @@ struct SearchTests {
         #expect(Set(ids).count == ids.count)
     }
 }
+
+@Suite("Current-app filter")
+struct FilterSheetTests {
+    private var aerospace: ShortcutSheet {
+        ShortcutSheet(id: "aerospace", title: "AeroSpace", symbol: "rectangle.3.group", sections: [
+            Section(title: "Workspaces", shortcuts: [
+                Shortcut(keys: "⌥ 1", action: "Focus workspace 1"),
+                Shortcut(keys: "⌥ ⇧ 1", action: "Move window to workspace 1"),
+            ]),
+            Section(title: "Focus", shortcuts: [
+                Shortcut(keys: "⌥ H", action: "Focus left", essential: true),
+            ]),
+        ])
+    }
+
+    @Test("Empty query returns every section unchanged")
+    func emptyQuery() {
+        #expect(filterSheet(aerospace, query: "") == aerospace.sections)
+        #expect(filterSheet(aerospace, query: "  ") == aerospace.sections)
+    }
+
+    @Test("Matches action text and drops empty sections")
+    func matchesAction() {
+        let sections = filterSheet(aerospace, query: "focus")
+        #expect(sections.count == 2)                       // Workspaces + Focus both retain a hit
+        #expect(sections.flatMap(\.shortcuts).count == 2)
+        #expect(sections.allSatisfy { !$0.shortcuts.isEmpty })
+    }
+
+    @Test("Matches key combo text")
+    func matchesKeys() {
+        let sections = filterSheet(aerospace, query: "⇧")
+        #expect(sections.flatMap(\.shortcuts).map(\.action) == ["Move window to workspace 1"])
+    }
+
+    @Test("Does not match on the app's own name (action/keys only)")
+    func ignoresAppName() {
+        #expect(filterSheet(aerospace, query: "aero").isEmpty)
+    }
+
+    @Test("Filter is case-insensitive")
+    func caseInsensitive() {
+        #expect(filterSheet(aerospace, query: "FOCUS").flatMap(\.shortcuts).count
+                == filterSheet(aerospace, query: "focus").flatMap(\.shortcuts).count)
+    }
+
+    @Test("No matches yields no sections")
+    func noMatches() {
+        #expect(filterSheet(aerospace, query: "zzzzz").isEmpty)
+    }
+}

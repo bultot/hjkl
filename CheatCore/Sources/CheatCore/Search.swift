@@ -67,3 +67,21 @@ public func searchSheets(_ sheets: [ShortcutSheet], query: String) -> [SearchGro
         )
     }
 }
+
+/// Filter one sheet's sections to the shortcuts whose action or keys contain
+/// `query` (case-insensitive), dropping any section left empty. An empty or
+/// whitespace-only query returns the sheet's sections unchanged (browse mode).
+///
+/// Unlike `searchSheets`, this never matches on the app's own name: within a
+/// single app you're narrowing by action/keys, not picking the app.
+public func filterSheet(_ sheet: ShortcutSheet, query: String) -> [Section] {
+    let q = query.trimmingCharacters(in: .whitespaces).lowercased()
+    guard !q.isEmpty else { return sheet.sections }
+
+    return sheet.sections.compactMap { section -> Section? in
+        let matches = section.shortcuts.filter {
+            $0.action.lowercased().contains(q) || $0.keys.lowercased().contains(q)
+        }
+        return matches.isEmpty ? nil : Section(title: section.title, shortcuts: matches)
+    }
+}

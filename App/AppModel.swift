@@ -14,6 +14,9 @@ final class AppModel {
     private(set) var sheets: [ShortcutSheet] = []
     var selectedID: String = ""
     var filter: String = ""
+    /// false → typing filters the selected app (the default); true → `/` escalated
+    /// the same query to a search across every enabled app.
+    var globalSearch: Bool = false
     var theme: Theme = .system
 
     @ObservationIgnored private var watcher: ConfigWatcher?
@@ -78,11 +81,18 @@ final class AppModel {
 
     func hasSheet(_ id: String) -> Bool { sheets.contains { $0.id == id } }
 
+    /// Reset to a clean browse of the current app: empty query, current-app scope.
+    /// Called when the overlay is shown so each session starts ready to type.
+    func resetSearch() {
+        filter = ""
+        globalSearch = false
+    }
+
     /// Select a specific provider tab if it has a sheet (used by process-aware context).
     func select(providerID: String) {
         guard hasSheet(providerID) else { return }
         selectedID = providerID
-        filter = ""
+        resetSearch()
     }
 
     func selectForFrontmost(bundleID: String?) {
@@ -91,7 +101,7 @@ final class AppModel {
               sheets.contains(where: { $0.id == provider.id })
         else { return }
         selectedID = provider.id
-        filter = ""
+        resetSearch()
     }
 
     /// Global search across every enabled sheet, grouped by app. Empty while the
@@ -99,6 +109,13 @@ final class AppModel {
     var searchGroups: [SearchGroup] { searchSheets(sheets, query: filter) }
 
     var searchHitCount: Int { searchGroups.reduce(0) { $0 + $1.count } }
+
+    /// The selected app's sections, narrowed to the current query (or the full
+    /// sheet when the query is empty). Drives the default current-app view.
+    var currentAppSections: [CheatCore.Section] {
+        guard let sheet = selectedSheet else { return [] }
+        return filterSheet(sheet, query: filter)
+    }
 
     // MARK: settings mutations
 
@@ -126,16 +143,18 @@ final class AppModel {
 
     // MARK: tab navigation
 
+    /// Move to an adjacent app tab. Drops back to current-app scope but keeps the
+    /// typed query, so arrowing across apps re-applies the same search to each.
     func selectNextTab(_ delta: Int) {
         guard !sheets.isEmpty, let i = sheets.firstIndex(where: { $0.id == selectedID }) else { return }
         let n = sheets.count
         selectedID = sheets[((i + delta) % n + n) % n].id
-        filter = ""
+        globalSearch = false
     }
 
     func selectTab(index: Int) {
         guard sheets.indices.contains(index) else { return }
         selectedID = sheets[index].id
-        filter = ""
+        globalSearch = false
     }
 }
