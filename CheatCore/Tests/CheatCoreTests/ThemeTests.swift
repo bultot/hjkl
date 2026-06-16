@@ -28,9 +28,9 @@ struct ThemeTests {
         #expect(RGBA(hex: "#cba6f7ff00") == nil)
     }
 
-    @Test("There are exactly four presets")
+    @Test("There are exactly five presets")
     func presetCount() {
-        #expect(Theme.presets.count == 4)
+        #expect(Theme.presets.count == 5)
     }
 
     @Test("Preset ids are unique")

@@ -184,6 +184,27 @@ public extension Theme {
         )
     )
 
+    /// Gruvbox Material (dark). Matches Ghostty's "Gruvbox Material Dark".
+    /// https://github.com/sainnhe/gruvbox-material
+    static let gruvboxMaterialDark = Theme(
+        id: "gruvbox-material-dark",
+        name: "Gruvbox Material Dark",
+        isDark: true,
+        usesSystemMaterials: false,
+        colors: ThemeColors(
+            background: RGBA(hex: "#282828")!,      // bg0
+            surface: RGBA(hex: "#32302f")!,         // bg1
+            surfaceElevated: RGBA(hex: "#45403d")!, // bg3
+            textPrimary: RGBA(hex: "#d4be98")!,     // fg0
+            textSecondary: RGBA(hex: "#928374")!,   // grey1
+            accent: RGBA(hex: "#d8a657")!,          // yellow
+            keycapBackground: RGBA(hex: "#45403d")!, // bg3
+            keycapText: RGBA(hex: "#ddc7a1")!,      // fg1
+            sectionTitle: RGBA(hex: "#d8a657")!,    // yellow
+            divider: RGBA(hex: "#45403d")!          // bg3
+        )
+    )
+
     /// All built-in themes, in display order.
-    static let presets: [Theme] = [.system, .catppuccinMocha, .catppuccinLatte, .tokyoNight]
+    static let presets: [Theme] = [.system, .catppuccinMocha, .catppuccinLatte, .tokyoNight, .gruvboxMaterialDark]
 }

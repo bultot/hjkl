@@ -26,7 +26,7 @@ public struct HjklSettings: Codable, Sendable, Hashable {
 
     public init(
         apps: [AppEntry] = [],
-        themeID: String = "catppuccin-mocha",
+        themeID: String = "gruvbox-material-dark",
         holdToPeekEnabled: Bool = false,
         toggleEnabled: Bool = true
     ) {
