@@ -6,18 +6,28 @@ import CheatCore
 @MainActor
 final class ContextMonitor {
     private let model: AppModel
+    /// Called on each app activation so the overlay can warm its terminal-context
+    /// cache ahead of time, making the next open land on the right tab instantly.
+    private let onActivate: (String?) -> Void
     private var token: (any NSObjectProtocol)?
 
-    init(model: AppModel) { self.model = model }
+    init(model: AppModel, onActivate: @escaping (String?) -> Void = { _ in }) {
+        self.model = model
+        self.onActivate = onActivate
+    }
 
     func start() {
         token = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didActivateApplicationNotification,
             object: nil,
             queue: .main
-        ) { [model] note in
+        ) { [weak self] note in
             let bid = (note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?.bundleIdentifier
-            Task { @MainActor in model.selectForFrontmost(bundleID: bid) }
+            Task { @MainActor in
+                guard let self else { return }
+                self.model.selectForFrontmost(bundleID: bid)
+                self.onActivate(bid)
+            }
         }
     }
 

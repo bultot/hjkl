@@ -50,6 +50,11 @@ final class OverlayController {
     /// App that was frontmost before we activated, so we can hand focus back on hide.
     private var previousApp: NSRunningApplication?
 
+    /// Last terminal-context resolution per app bundle id. Lets the overlay open
+    /// directly on the right tab instead of flashing the bundle match first and
+    /// switching when the (slow, subprocess-backed) probe returns.
+    private var contextCache: [String: String] = [:]
+
     var isVisible: Bool { panel.isVisible }
 
     /// Toggle for the sticky hotkey (interactive: becomes key).
@@ -73,9 +78,14 @@ final class OverlayController {
 
         let front = NSWorkspace.shared.frontmostApplication
         let bundle = front?.bundleIdentifier
-        // Cheap, synchronous tab pick from the frontmost app's bundle id so the
-        // panel is correct for the common case the instant it appears.
-        model.selectForFrontmost(bundleID: bundle)
+        // Instant tab pick: a cached terminal-context resolution (e.g. tmux inside
+        // a terminal) takes precedence so the panel opens on the right tab; else
+        // fall back to the synchronous bundle match.
+        if let cached = bundle.flatMap({ contextCache[$0] }), model.hasSheet(cached) {
+            model.select(providerID: cached)
+        } else {
+            model.selectForFrontmost(bundleID: bundle)
+        }
 
         panel.alphaValue = 1
         panel.setFrame(defaultFrame(), display: false)
@@ -93,20 +103,37 @@ final class OverlayController {
             panel.orderFrontRegardless()
         }
 
-        // Process-aware refinement shells out to a terminal CLI (cmux's pane probe
-        // or `tmux list-clients`), so do it off the main thread and switch tabs when
-        // it returns — the panel never waits on a subprocess. The resolver returns
-        // nil for non-terminal apps, so the detached probe is cheap there.
+        // Refine the cached/bundle pick against the live terminal context and keep
+        // the cache fresh (the process can change between opens).
+        resolveContext(bundle: bundle, applyToVisible: true)
+    }
+
+    /// Resolve the terminal context off the main thread (it shells out to a CLI),
+    /// cache it, and update the selected tab. `applyToVisible` switches a showing
+    /// overlay; otherwise it warms the default tab while hidden, used on app
+    /// activation so the next open is instant.
+    func resolveContext(bundle: String?, applyToVisible: Bool) {
         let resolver = self.resolver
         Task.detached(priority: .userInitiated) { [weak self] in
             guard let pid = resolver.providerID(forFrontmostBundle: bundle) else { return }
-            await self?.applyResolvedProvider(pid)
+            await self?.cacheAndApply(bundle: bundle, pid: pid, applyToVisible: applyToVisible)
         }
     }
 
-    /// Switch to the process-aware provider once the async cmux probe returns.
-    private func applyResolvedProvider(_ pid: String) {
-        guard panel.isVisible, model.hasSheet(pid) else { return }
+    /// Warm the context cache for an app the user just switched to (overlay hidden).
+    func warmContext(bundle: String?) { resolveContext(bundle: bundle, applyToVisible: false) }
+
+    private func cacheAndApply(bundle: String?, pid: String, applyToVisible: Bool) {
+        if let bundle { contextCache[bundle] = pid }
+        guard model.hasSheet(pid) else { return }
+        if applyToVisible {
+            guard panel.isVisible else { return }
+        } else {
+            // Warming while hidden: only adjust the default tab if that app is
+            // still frontmost (don't fight a newer activation).
+            guard !panel.isVisible,
+                  NSWorkspace.shared.frontmostApplication?.bundleIdentifier == bundle else { return }
+        }
         model.select(providerID: pid)
     }
 

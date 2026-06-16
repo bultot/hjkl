@@ -72,9 +72,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func ensureController() {
         guard controller == nil else { return }
         controller = OverlayController(model: model)
-        let monitor = ContextMonitor(model: model)
+        let monitor = ContextMonitor(model: model) { [weak self] bundle in
+            self?.controller?.warmContext(bundle: bundle)
+        }
         monitor.start()
         contextMonitor = monitor
+
+        // Warm the cache for the already-frontmost app (no activation fires for it),
+        // so even the first open after launch lands on the right tab.
+        controller?.warmContext(bundle: NSWorkspace.shared.frontmostApplication?.bundleIdentifier)
     }
 
     func showOverlay(activating: Bool = true) {
