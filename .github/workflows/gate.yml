@@ -1,9 +1,0 @@
-name: gate
-on:
-  pull_request:
-    branches: [ main ]
-jobs:
-  build: { runs-on: macos-latest, steps: [ { uses: actions/checkout@v4 }, { name: build, run: ./ci/build.sh } ] }
-  lint:  { runs-on: macos-latest, steps: [ { uses: actions/checkout@v4 }, { name: lint+typecheck, run: ./ci/lint.sh } ] }
-  test:  { runs-on: macos-latest, steps: [ { uses: actions/checkout@v4 }, { name: tests, run: ./ci/test.sh } ] }
-  smoke: { runs-on: macos-latest, steps: [ { uses: actions/checkout@v4 }, { name: smoke/boot, run: ./ci/smoke.sh } ] }

@@ -29,6 +29,10 @@ cd CheatCore && swift test   # 66 tests / 15 suites, keep green
 `project.yml` is the source of truth for the Xcode project; edit it, not the
 generated `.xcodeproj`. Run `xcodegen generate` after changing it.
 
+The `ci/*.sh` scripts (`build.sh`, `lint.sh`, `test.sh`, `smoke.sh`) run the
+same checks locally. There's no GitHub Actions gate; run them by hand before
+committing.
+
 ## Conventions
 
 - **Adding a provider:** implement `ShortcutProvider` in
@@ -68,22 +72,14 @@ is the notarized Developer ID release pipeline (`RELEASE.md`), which needs an
 Apple Developer ID certificate before it can run. Everything else is in
 [FUTURE.md](FUTURE.md).
 
-## Task conventions (READ BEFORE CREATING ISSUES)
-Create each task as a GitHub Issue:
+## Working on this project
 
-  gh issue create -t "<title>" -b "<description + acceptance criteria as a checklist>" \
-    -l <domain>            # exactly one of: swift | ts-web | python
-    [-l team]              # ONLY if it needs parallel specialists (~7x tokens)
-    [-l bootstrap]         # the FIRST issue of a new repo
-    [-l characterize]      # FIRST issue touching an untested module (pin current behavior)
+Work directly in Claude Code. No GitHub Issues, no agent orchestrator, no
+specialist routing labels.
 
-Rules:
-- One domain label per Issue -> AO routes it to the matching specialist agent.
-- Acceptance criteria are a markdown checklist in the body, mapping to REAL tests.
-  The test suite is the merge gate; the reviewer is a second net, not the gate.
-- BROWNFIELD: the FIRST Issue that touches a module must be `characterize` and write
-  tests pinning its CURRENT behavior BEFORE any change. Feature/fix Issues depend on it.
-- `bootstrap` done = scaffold + ONE real passing test + fill ci/*.sh + gate green. No features.
-- Keep Issues atomic (~2-3 changes, one fresh agent context). Order via "depends on #N".
-- DESIGN GATE (light): the planner emits a one-page design Issue per goal for your glance,
-  but feature/fix Issues are NOT blocked on approval.
+- TDD: write the failing test first, then the code. Providers are pure, so this
+  is cheap. Keep `cd CheatCore && swift test` green before committing.
+- Short-lived branches off `main`, conventional commits. Push and open PRs only
+  when asked.
+- Keep changes atomic and scoped. When touching an untested module, pin its
+  current behavior with a test before changing it.
