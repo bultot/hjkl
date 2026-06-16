@@ -17,6 +17,10 @@ final class AppModel {
     /// false → typing filters the selected app (the default); true → `/` escalated
     /// the same query to a search across every enabled app.
     var globalSearch: Bool = false
+    /// Bumped each time the overlay is shown interactively. The view observes it
+    /// to re-focus the search field, since the hosting view is built once and
+    /// reused (so `onAppear` fires only on the first, hidden, pre-warm).
+    var presentNonce: Int = 0
     var theme: Theme = .system
 
     @ObservationIgnored private var watcher: ConfigWatcher?

@@ -89,7 +89,16 @@ struct CheatSheetView: View {
         .onChange(of: model.selectedID) { applyPendingOrReset() }
         .onChange(of: model.filter) { applyPendingOrReset() }
         .onChange(of: model.globalSearch) { selection = 0 }
-        // Keep focus on the search field so the user can type immediately.
+        // Re-focus the search field each time the overlay is shown (the hosting
+        // view is reused, so onAppear alone fires only on the hidden pre-warm).
+        // Clearing first, then setting on the next runloop, forces SwiftUI to
+        // re-establish first responder even when the value is unchanged — a plain
+        // re-assign is dropped when the panel has just become key.
+        .onChange(of: model.presentNonce) {
+            selection = 0
+            focus = nil
+            DispatchQueue.main.async { focus = .search }
+        }
         .onAppear { focus = .search }
     }
 

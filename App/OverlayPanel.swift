@@ -87,6 +87,8 @@ final class OverlayController {
             }
             NSApp.activate(ignoringOtherApps: true)
             panel.makeKeyAndOrderFront(nil)
+            // Now that the panel is key, tell the view to focus the search field.
+            model.presentNonce &+= 1
         } else {
             panel.orderFrontRegardless()
         }
