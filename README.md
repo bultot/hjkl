@@ -51,6 +51,9 @@ with emphasis.
   terminal it goes further: it probes the multiplexer to see the foreground
   process and opens on lazygit / Neovim / Claude Code / zsh accordingly, then
   switches tabs live as you move between panes.
+- **Hide what you know:** hover a shortcut and click the eye, or press `⌘⌫` on the
+  selected row, to drop it from the sheet and search. Review and restore hidden
+  ones in Settings.
 
 The overlay shows instantly and returns focus to the app you came from when it
 hides. Themes: System, Catppuccin Mocha (default), Catppuccin Latte, Tokyo
@@ -61,6 +64,9 @@ Night. The panel chrome matches the active theme.
 Menu-bar icon → Settings:
 
 - App toggles (which providers to show, hold-to-peek on/off).
+- Hidden shortcuts (review and restore the ones you've dismissed).
+- Context priority (order which source wins when several match, e.g. an attached
+  tmux session vs the terminal's own bindings).
 - Theme picker.
 - Hotkey recorder (rebind the toggle).
 - Open at login (SMAppService).
