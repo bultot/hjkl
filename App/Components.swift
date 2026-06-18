@@ -24,6 +24,7 @@ struct SheetColumnsView: View {
     let palette: Palette
     var columns: Int = 3
     var selectedRowID: String? = nil
+    var onHide: ((Shortcut) -> Void)? = nil
 
     var body: some View {
         let cols = balancedColumns(sections, columns)
@@ -31,7 +32,7 @@ struct SheetColumnsView: View {
             ForEach(Array(cols.enumerated()), id: \.offset) { _, colSections in
                 VStack(alignment: .leading, spacing: 16) {
                     ForEach(colSections) { s in
-                        SectionCardView(section: s, palette: palette, selectedRowID: selectedRowID)
+                        SectionCardView(section: s, palette: palette, selectedRowID: selectedRowID, onHide: onHide)
                     }
                     Spacer(minLength: 0)
                 }
@@ -67,6 +68,7 @@ struct SearchResultsView: View {
     let groups: [SearchGroup]
     let palette: Palette
     var selectedHitID: String? = nil
+    var onHide: ((String, Shortcut) -> Void)? = nil
 
     private var columns: Int { min(3, max(1, groups.count)) }
 
@@ -76,7 +78,7 @@ struct SearchResultsView: View {
             ForEach(Array(cols.enumerated()), id: \.offset) { _, colGroups in
                 VStack(alignment: .leading, spacing: 16) {
                     ForEach(colGroups) { g in
-                        SearchGroupCardView(group: g, palette: palette, selectedHitID: selectedHitID)
+                        SearchGroupCardView(group: g, palette: palette, selectedHitID: selectedHitID, onHide: onHide)
                     }
                     Spacer(minLength: 0)
                 }
@@ -91,6 +93,7 @@ struct SearchGroupCardView: View {
     let group: SearchGroup
     let palette: Palette
     var selectedHitID: String? = nil
+    var onHide: ((String, Shortcut) -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -112,7 +115,8 @@ struct SearchGroupCardView: View {
                     ShortcutRowView(
                         shortcut: hit.shortcut,
                         palette: palette,
-                        selected: selectedHitID == hit.id
+                        selected: selectedHitID == hit.id,
+                        onHide: onHide.map { cb in { cb(group.sheetID, hit.shortcut) } }
                     )
                     .id(hit.id)
                 }
@@ -141,10 +145,15 @@ struct KeyCapView: View {
 }
 
 /// One shortcut row: keycap + action, with emphasis for essential/popular ones.
+/// When `onHide` is set, a hide button reveals on hover (and on selection, so the
+/// keyboard path has a visible target).
 struct ShortcutRowView: View {
     let shortcut: Shortcut
     let palette: Palette
     var selected: Bool = false
+    var onHide: (() -> Void)? = nil
+
+    @State private var hovering = false
 
     var body: some View {
         HStack(spacing: 12) {
@@ -157,10 +166,21 @@ struct ShortcutRowView: View {
                 Image(systemName: "star.fill").font(.system(size: 9)).foregroundStyle(palette.accent)
             }
             Spacer(minLength: 8)
+            if let onHide {
+                Button(action: onHide) {
+                    Image(systemName: "eye.slash")
+                        .font(.system(size: 10))
+                        .foregroundStyle(palette.textSecondary)
+                }
+                .buttonStyle(.plain)
+                .help("Hide this shortcut (⌘⌫)")
+                .opacity(hovering || selected ? 1 : 0)
+            }
         }
         .padding(.horizontal, 12).padding(.vertical, 7)
         .background(selected ? palette.accent.opacity(0.18) : .clear)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .onHover { hovering = $0 }
     }
 }
 
@@ -169,6 +189,7 @@ struct SectionCardView: View {
     let section: CheatCore.Section
     let palette: Palette
     var selectedRowID: String? = nil
+    var onHide: ((Shortcut) -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -181,7 +202,8 @@ struct SectionCardView: View {
                     ShortcutRowView(
                         shortcut: sc,
                         palette: palette,
-                        selected: selectedRowID == rowID(section.id, sc)
+                        selected: selectedRowID == rowID(section.id, sc),
+                        onHide: onHide.map { cb in { cb(sc) } }
                     )
                     .id(rowID(section.id, sc))
                 }

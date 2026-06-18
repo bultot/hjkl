@@ -202,8 +202,11 @@ struct CheatSheetView: View {
         } else if searchGroups.isEmpty {
             placeholder("No matches for “\(model.filter)”.", p)
         } else {
-            SearchResultsView(groups: searchGroups, palette: p, selectedHitID: selectedHitID)
-                .padding(18)
+            SearchResultsView(
+                groups: searchGroups, palette: p, selectedHitID: selectedHitID,
+                onHide: { model.hide(providerID: $0, shortcut: $1) }
+            )
+            .padding(18)
         }
     }
 
@@ -214,7 +217,8 @@ struct CheatSheetView: View {
         } else {
             SheetColumnsView(
                 sections: appSections, palette: p,
-                columns: columnCount(for: appSections), selectedRowID: selectedAppRowID
+                columns: columnCount(for: appSections), selectedRowID: selectedAppRowID,
+                onHide: { model.hide(providerID: model.selectedID, shortcut: $0) }
             )
             .padding(18)
         }
@@ -247,7 +251,7 @@ struct CheatSheetView: View {
     private var footerCount: String {
         if isGlobal { return "\(model.searchHitCount) matches" }
         if hasQuery { return "\(appFlat.count) matches" }
-        return "\(sheet?.count ?? 0) shortcuts"
+        return "\(model.selectedVisibleCount) shortcuts"
     }
 
     @ViewBuilder private func hint(_ k: String, _ label: String, _ p: Palette) -> some View {
@@ -278,6 +282,13 @@ struct CheatSheetView: View {
             break
         }
 
+        // ⌘⌫ hides the selected row (a non-text key combo, so it reaches here
+        // before the focused search field consumes it).
+        if press.key == .delete, press.modifiers.contains(.command) {
+            hideSelected()
+            return .handled
+        }
+
         // `/` escalates the current query to an all-apps search. Everything else
         // (letters, digits, backspace, …) falls through to the search field.
         if press.characters == "/" {
@@ -285,6 +296,19 @@ struct CheatSheetView: View {
             return .handled
         }
         return .ignored
+    }
+
+    /// Hide the currently selected shortcut, then clamp selection to the shrunk list.
+    private func hideSelected() {
+        if isGlobal {
+            guard searchFlat.indices.contains(selection) else { return }
+            let hit = searchFlat[selection]
+            model.hide(providerID: hit.sheetID, shortcut: hit.shortcut)
+        } else {
+            guard appFlat.indices.contains(selection) else { return }
+            model.hide(providerID: model.selectedID, shortcut: appFlat[selection].sc)
+        }
+        if selection >= navCount { selection = max(0, navCount - 1) }
     }
 
     /// Escape ladder: clear the query (back to browsing the app), then close.

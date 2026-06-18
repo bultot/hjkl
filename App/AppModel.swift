@@ -12,6 +12,10 @@ final class AppModel {
     let store = SettingsStore()
 
     private(set) var sheets: [ShortcutSheet] = []
+    /// Hidden-shortcut keys (`providerID\u{1}keys\u{1}action`). Observed render
+    /// source of truth, mirrored to `store`; mutating the store alone wouldn't
+    /// trigger `@Observable` updates.
+    private(set) var hidden: Set<String> = []
     var selectedID: String = ""
     var filter: String = ""
     /// false → typing filters the selected app (the default); true → `/` escalated
@@ -29,6 +33,7 @@ final class AppModel {
 
     init() {
         store.load()
+        hidden = store.hiddenSet()
         applyTheme()
         reload()
     }
@@ -83,6 +88,14 @@ final class AppModel {
 
     var selectedSheet: ShortcutSheet? { sheets.first { $0.id == selectedID } }
 
+    /// Sheets with the user's hidden shortcuts stripped out. Drives every
+    /// rendered list (current-app and global search); tabs still come from raw
+    /// `sheets`, so hiding every shortcut in an app leaves an empty tab rather
+    /// than making the tab vanish.
+    var visibleSheets: [ShortcutSheet] { sheets.map { removingHidden($0, hidden: hidden) } }
+
+    private var visibleSelectedSheet: ShortcutSheet? { visibleSheets.first { $0.id == selectedID } }
+
     func hasSheet(_ id: String) -> Bool { sheets.contains { $0.id == id } }
 
     /// Reset to a clean browse of the current app: empty query, current-app scope.
@@ -110,16 +123,19 @@ final class AppModel {
 
     /// Global search across every enabled sheet, grouped by app. Empty while the
     /// query is blank (the overlay shows a prompt instead).
-    var searchGroups: [SearchGroup] { searchSheets(sheets, query: filter) }
+    var searchGroups: [SearchGroup] { searchSheets(visibleSheets, query: filter) }
 
     var searchHitCount: Int { searchGroups.reduce(0) { $0 + $1.count } }
 
     /// The selected app's sections, narrowed to the current query (or the full
     /// sheet when the query is empty). Drives the default current-app view.
     var currentAppSections: [CheatCore.Section] {
-        guard let sheet = selectedSheet else { return [] }
+        guard let sheet = visibleSelectedSheet else { return [] }
         return filterSheet(sheet, query: filter)
     }
+
+    /// Visible (hidden-stripped) shortcut count for the selected app, for the footer.
+    var selectedVisibleCount: Int { visibleSelectedSheet?.count ?? 0 }
 
     // MARK: settings mutations
 
@@ -145,6 +161,43 @@ final class AppModel {
         store.setHoldToPeek(on); store.save()
     }
 
+    // MARK: hidden shortcuts
+
+    func isHidden(providerID: String, shortcut: Shortcut) -> Bool {
+        hidden.contains(hiddenKey(providerID: providerID, shortcut: shortcut))
+    }
+
+    func hide(providerID: String, shortcut: Shortcut) {
+        let key = hiddenKey(providerID: providerID, shortcut: shortcut)
+        hidden.insert(key)
+        store.hide(key); store.save()
+    }
+
+    func unhide(key: String) {
+        hidden.remove(key)
+        store.unhide(key); store.save()
+    }
+
+    func unhideAll() {
+        hidden.removeAll()
+        store.unhideAll(); store.save()
+    }
+
+    /// Hidden shortcuts decoded for the Settings list: provider display name plus
+    /// the readable keys/action, sorted by app then action. Drops keys whose
+    /// provider is no longer in the registry.
+    var hiddenEntries: [HiddenEntry] {
+        hidden.compactMap { key -> HiddenEntry? in
+            guard let parts = decodeHiddenKey(key),
+                  let provider = registry.provider(id: parts.providerID) else { return nil }
+            return HiddenEntry(
+                key: key, providerID: parts.providerID, providerName: provider.displayName,
+                keys: parts.keys, action: parts.action
+            )
+        }
+        .sorted { ($0.providerName, $0.action) < ($1.providerName, $1.action) }
+    }
+
     // MARK: tab navigation
 
     /// Move to an adjacent app tab. Drops back to current-app scope but keeps the
@@ -161,4 +214,14 @@ final class AppModel {
         selectedID = sheets[index].id
         globalSearch = false
     }
+}
+
+/// A hidden shortcut decoded for display in Settings.
+struct HiddenEntry: Identifiable {
+    let key: String
+    let providerID: String
+    let providerName: String
+    let keys: String
+    let action: String
+    var id: String { key }
 }

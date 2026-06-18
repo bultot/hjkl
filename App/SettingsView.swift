@@ -41,8 +41,31 @@ struct SettingsView: View {
                     }
                 }
             }
+            hiddenSection
         }
         .formStyle(.grouped)
+    }
+
+    @ViewBuilder private var hiddenSection: some View {
+        Section("Hidden shortcuts") {
+            if model.hiddenEntries.isEmpty {
+                Text("Nothing hidden yet. Hover a row and click the eye, or press ⌘⌫, to hide a shortcut you already know.")
+                    .font(.caption).foregroundStyle(.secondary)
+            } else {
+                ForEach(model.hiddenEntries) { entry in
+                    LabeledContent {
+                        Button("Restore") { model.unhide(key: entry.key) }
+                    } label: {
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(entry.action)
+                            Text("\(entry.providerName)  ·  \(entry.keys)")
+                                .font(.caption2).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                Button("Restore all") { model.unhideAll() }
+            }
+        }
     }
 
     private func prettyPath(_ url: URL) -> String {

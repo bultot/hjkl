@@ -23,17 +23,31 @@ public struct HjklSettings: Codable, Sendable, Hashable {
     public var themeID: String
     public var holdToPeekEnabled: Bool
     public var toggleEnabled: Bool
+    /// Shortcuts the user dismissed, each `providerID\u{1}keys\u{1}action` (see
+    /// `hiddenKey(providerID:shortcut:)`). Kept sorted for stable JSON diffs.
+    public var hiddenShortcuts: [String]
 
     public init(
         apps: [AppEntry] = [],
         themeID: String = "gruvbox-material-dark",
         holdToPeekEnabled: Bool = false,
-        toggleEnabled: Bool = true
+        toggleEnabled: Bool = true,
+        hiddenShortcuts: [String] = []
     ) {
         self.apps = apps
         self.themeID = themeID
         self.holdToPeekEnabled = holdToPeekEnabled
         self.toggleEnabled = toggleEnabled
+        self.hiddenShortcuts = hiddenShortcuts
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        apps = try c.decodeIfPresent([AppEntry].self, forKey: .apps) ?? []
+        themeID = try c.decodeIfPresent(String.self, forKey: .themeID) ?? "gruvbox-material-dark"
+        holdToPeekEnabled = try c.decodeIfPresent(Bool.self, forKey: .holdToPeekEnabled) ?? false
+        toggleEnabled = try c.decodeIfPresent(Bool.self, forKey: .toggleEnabled) ?? true
+        hiddenShortcuts = try c.decodeIfPresent([String].self, forKey: .hiddenShortcuts) ?? []
     }
 }
 
@@ -154,5 +168,30 @@ public final class SettingsStore: @unchecked Sendable {
     public func entry(_ id: String) -> AppEntry? {
         lock.lock(); defer { lock.unlock() }
         return _settings.apps.first { $0.id == id }
+    }
+
+    // MARK: hidden shortcuts
+
+    /// The hidden-shortcut keys as a set for O(1) membership checks.
+    public func hiddenSet() -> Set<String> {
+        lock.lock(); defer { lock.unlock() }
+        return Set(_settings.hiddenShortcuts)
+    }
+
+    public func hide(_ key: String) {
+        lock.lock(); defer { lock.unlock() }
+        guard !_settings.hiddenShortcuts.contains(key) else { return }
+        _settings.hiddenShortcuts.append(key)
+        _settings.hiddenShortcuts.sort()
+    }
+
+    public func unhide(_ key: String) {
+        lock.lock(); defer { lock.unlock() }
+        _settings.hiddenShortcuts.removeAll { $0 == key }
+    }
+
+    public func unhideAll() {
+        lock.lock(); defer { lock.unlock() }
+        _settings.hiddenShortcuts.removeAll()
     }
 }
