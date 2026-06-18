@@ -71,6 +71,7 @@ struct CheatSheetView: View {
         }
         .frame(width: Self.cardSize.width, height: Self.cardSize.height)
         .background { p.background }
+        .background { hideKeyButton }
         .clipShape(RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous)
@@ -150,6 +151,7 @@ struct CheatSheetView: View {
                 .onSubmit { if isGlobal { jumpToSelectedHit() } }
                 // The focused NSTextField field editor swallows Escape before it
                 // reaches the panel's .onKeyPress, so handle it here directly.
+                // (⌘⌫ is handled by a key-equivalent button; see hideKeyButton.)
                 .onExitCommand { handleEscape() }
         }
         .padding(.horizontal, 10).padding(.vertical, 6)
@@ -263,6 +265,17 @@ struct CheatSheetView: View {
 
     // MARK: keyboard
 
+    /// Invisible ⌘⌫ key-equivalent that hides the selected row. AppKit processes
+    /// a button's key equivalent before the focused search field's editor gets the
+    /// keystroke, which neither a panel- nor field-level `.onKeyPress` manages for
+    /// ⌘⌫ (the field editor claims it as deleteToBeginningOfLine:).
+    @ViewBuilder private var hideKeyButton: some View {
+        Button(action: hideSelected) { EmptyView() }
+            .keyboardShortcut(.delete, modifiers: .command)
+            .opacity(0)
+            .accessibilityHidden(true)
+    }
+
     private func handleKey(_ press: KeyPress, palette p: Palette) -> KeyPress.Result {
         switch press.key {
         case .escape:
@@ -280,13 +293,6 @@ struct CheatSheetView: View {
             return .handled
         default:
             break
-        }
-
-        // ⌘⌫ hides the selected row (a non-text key combo, so it reaches here
-        // before the focused search field consumes it).
-        if press.key == .delete, press.modifiers.contains(.command) {
-            hideSelected()
-            return .handled
         }
 
         // `/` escalates the current query to an all-apps search. Everything else

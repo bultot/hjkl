@@ -167,10 +167,30 @@ final class AppModel {
 
     // MARK: context priority
 
-    /// Swap two entries (drives the up/down controls in Settings).
-    func swapContextPriority(_ i: Int, _ j: Int) {
-        guard contextPriority.indices.contains(i), contextPriority.indices.contains(j) else { return }
-        contextPriority.swapAt(i, j)
+    /// The context sources worth ordering on this machine, in current priority
+    /// order. A multiplexer source only appears when that tool is installed (an
+    /// absent tool can never win, so showing it is just noise); the terminal is
+    /// always relevant. The full `contextPriority` array still carries every
+    /// source, so a hidden one keeps its place if the tool reappears.
+    var relevantContextSources: [ContextSource] {
+        contextPriority.filter { source in
+            switch source {
+            case .cmuxPaneProbe: registry.provider(id: "cmux")?.isInstalled ?? false
+            case .attachedTmux: registry.provider(id: "tmux")?.isInstalled ?? false
+            case .frontmostBundle: true
+            }
+        }
+    }
+
+    /// Swap two relevant sources (drives the up/down controls in Settings). Swaps
+    /// by value within the full array, so any hidden source between them is left
+    /// untouched and the relative order of the visible ones is what changes.
+    func swapRelevant(_ i: Int, _ j: Int) {
+        let rel = relevantContextSources
+        guard rel.indices.contains(i), rel.indices.contains(j),
+              let ia = contextPriority.firstIndex(of: rel[i]),
+              let ib = contextPriority.firstIndex(of: rel[j]) else { return }
+        contextPriority.swapAt(ia, ib)
         store.setContextPriority(contextPriority); store.save()
     }
 

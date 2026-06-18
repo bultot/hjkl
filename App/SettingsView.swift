@@ -10,10 +10,10 @@ struct SettingsView: View {
 
     var body: some View {
         TabView {
-            appsTab
-                .tabItem { Label("Apps", systemImage: "square.grid.2x2") }
             generalTab
                 .tabItem { Label("General", systemImage: "gearshape") }
+            appsTab
+                .tabItem { Label("Apps", systemImage: "square.grid.2x2") }
         }
         .frame(width: 480, height: 460)
     }
@@ -77,7 +77,7 @@ struct SettingsView: View {
         switch source {
         case .cmuxPaneProbe: "Process in cmux pane"
         case .attachedTmux: "Attached tmux session"
-        case .frontmostBundle: "Frontmost app"
+        case .frontmostBundle: "Terminal"
         }
     }
 
@@ -101,24 +101,27 @@ struct SettingsView: View {
                     ForEach(Theme.presets) { Text($0.name).tag($0.id) }
                 }
             }
-            Section("Context priority") {
-                ForEach(Array(model.contextPriority.enumerated()), id: \.element) { i, source in
-                    HStack(spacing: 8) {
-                        Text("\(i + 1).").font(.callout.monospacedDigit()).foregroundStyle(.secondary)
-                        Text(contextSourceLabel(source))
-                        Spacer()
-                        Button { model.swapContextPriority(i, i - 1) } label: {
-                            Image(systemName: "chevron.up")
+            if model.relevantContextSources.count >= 2 {
+                Section("Context priority") {
+                    let sources = model.relevantContextSources
+                    ForEach(Array(sources.enumerated()), id: \.element) { i, source in
+                        HStack(spacing: 8) {
+                            Text("\(i + 1).").font(.callout.monospacedDigit()).foregroundStyle(.secondary)
+                            Text(contextSourceLabel(source))
+                            Spacer()
+                            Button { model.swapRelevant(i, i - 1) } label: {
+                                Image(systemName: "chevron.up")
+                            }
+                            .buttonStyle(.borderless).disabled(i == 0)
+                            Button { model.swapRelevant(i, i + 1) } label: {
+                                Image(systemName: "chevron.down")
+                            }
+                            .buttonStyle(.borderless).disabled(i == sources.count - 1)
                         }
-                        .buttonStyle(.borderless).disabled(i == 0)
-                        Button { model.swapContextPriority(i, i + 1) } label: {
-                            Image(systemName: "chevron.down")
-                        }
-                        .buttonStyle(.borderless).disabled(i == model.contextPriority.count - 1)
                     }
+                    Text("When more than one matches (e.g. a terminal hosting a tmux session), the overlay opens on the highest source listed here.")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
-                Text("When more than one matches (e.g. a terminal hosting a tmux session), the overlay opens on the highest source listed here.")
-                    .font(.caption).foregroundStyle(.secondary)
             }
             Section("Hotkeys") {
                 KeyboardShortcuts.Recorder("Toggle cheat sheet", name: .toggleCheatSheet)
