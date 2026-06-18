@@ -57,6 +57,53 @@ struct SettingsTests {
         #expect(store.entry("aerospace")?.configPathOverride == "/tmp/custom.toml")
     }
 
+    @Test("fresh load() seeds the default context priority")
+    func contextPriorityDefault() {
+        let store = SettingsStore(directory: tempDir())
+        store.load()
+        #expect(store.settings.contextPriority == ContextSource.defaultPriority)
+    }
+
+    @Test("context priority persists across reload")
+    func contextPriorityPersists() {
+        let dir = tempDir()
+        let store = SettingsStore(directory: dir)
+        store.load()
+        store.setContextPriority([.frontmostBundle, .attachedTmux, .cmuxPaneProbe])
+        store.save()
+
+        let reloaded = SettingsStore(directory: dir)
+        reloaded.load()
+        #expect(reloaded.settings.contextPriority == [.frontmostBundle, .attachedTmux, .cmuxPaneProbe])
+    }
+
+    @Test("load() normalizes a partial stored context priority")
+    func contextPriorityNormalizedOnLoad() {
+        let dir = tempDir()
+        let store = SettingsStore(directory: dir)
+        store.load()
+        store.setContextPriority([.frontmostBundle])   // partial
+        store.save()
+
+        let reloaded = SettingsStore(directory: dir)
+        reloaded.load()
+        #expect(reloaded.settings.contextPriority == [.frontmostBundle, .cmuxPaneProbe, .attachedTmux])
+    }
+
+    @Test("legacy JSON without contextPriority decodes to default")
+    func legacyContextPriority() throws {
+        let legacy = #"{"apps":[],"themeID":"tokyo-night"}"#
+        let decoded = try JSONDecoder().decode(HjklSettings.self, from: Data(legacy.utf8))
+        #expect(decoded.contextPriority == ContextSource.defaultPriority)
+    }
+
+    @Test("an unknown context source string is dropped, not fatal")
+    func unknownContextSourceDropped() throws {
+        let json = #"{"contextPriority":["attached-tmux","bogus","frontmost-bundle"]}"#
+        let decoded = try JSONDecoder().decode(HjklSettings.self, from: Data(json.utf8))
+        #expect(decoded.contextPriority == [.attachedTmux, .frontmostBundle])
+    }
+
     @Test("seed drops unknown ids and keeps registry order")
     func seedDropsUnknown() {
         let store = SettingsStore(directory: tempDir())

@@ -73,6 +73,14 @@ struct SettingsView: View {
         return url.path.replacingOccurrences(of: home, with: "~")
     }
 
+    private func contextSourceLabel(_ source: ContextSource) -> String {
+        switch source {
+        case .cmuxPaneProbe: "Process in cmux pane"
+        case .attachedTmux: "Attached tmux session"
+        case .frontmostBundle: "Frontmost app"
+        }
+    }
+
     // MARK: General
 
     private var generalTab: some View {
@@ -92,6 +100,25 @@ struct SettingsView: View {
                 )) {
                     ForEach(Theme.presets) { Text($0.name).tag($0.id) }
                 }
+            }
+            Section("Context priority") {
+                ForEach(Array(model.contextPriority.enumerated()), id: \.element) { i, source in
+                    HStack(spacing: 8) {
+                        Text("\(i + 1).").font(.callout.monospacedDigit()).foregroundStyle(.secondary)
+                        Text(contextSourceLabel(source))
+                        Spacer()
+                        Button { model.swapContextPriority(i, i - 1) } label: {
+                            Image(systemName: "chevron.up")
+                        }
+                        .buttonStyle(.borderless).disabled(i == 0)
+                        Button { model.swapContextPriority(i, i + 1) } label: {
+                            Image(systemName: "chevron.down")
+                        }
+                        .buttonStyle(.borderless).disabled(i == model.contextPriority.count - 1)
+                    }
+                }
+                Text("When more than one matches (e.g. a terminal hosting a tmux session), the overlay opens on the highest source listed here.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
             Section("Hotkeys") {
                 KeyboardShortcuts.Recorder("Toggle cheat sheet", name: .toggleCheatSheet)

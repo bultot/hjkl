@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import CheatCore
 
 /// Floating panel that hosts the cheat sheet. Can become key (for toggle-mode
 /// interaction) but never activates as the main app window.
@@ -115,17 +116,29 @@ final class OverlayController {
     func resolveContext(bundle: String?, applyToVisible: Bool) {
         let resolver = self.resolver
         Task.detached(priority: .userInitiated) { [weak self] in
-            guard let pid = resolver.providerID(forFrontmostBundle: bundle) else { return }
-            await self?.cacheAndApply(bundle: bundle, pid: pid, applyToVisible: applyToVisible)
+            let cli = resolver.resolve(forFrontmostBundle: bundle)
+            await self?.finalize(bundle: bundle, cli: cli, applyToVisible: applyToVisible)
         }
     }
 
     /// Warm the context cache for an app the user just switched to (overlay hidden).
     func warmContext(bundle: String?) { resolveContext(bundle: bundle, applyToVisible: false) }
 
-    private func cacheAndApply(bundle: String?, pid: String, applyToVisible: Bool) {
-        if let bundle { contextCache[bundle] = pid }
-        guard model.hasSheet(pid) else { return }
+    /// Combine the CLI-derived candidate with the frontmost-bundle match and pick
+    /// the winner per the user's configured priority, then cache and apply it.
+    private func finalize(
+        bundle: String?,
+        cli: (source: ContextSource, providerID: String)?,
+        applyToVisible: Bool
+    ) {
+        var candidates: [ContextSource: String] = [:]
+        if let cli { candidates[cli.source] = cli.providerID }
+        if let bundle, let bp = model.registry.provider(forBundleID: bundle)?.id {
+            candidates[.frontmostBundle] = bp
+        }
+        guard let winner = CheatCore.resolveContext(candidates: candidates, order: model.contextPriority) else { return }
+        if let bundle { contextCache[bundle] = winner }
+        guard model.hasSheet(winner) else { return }
         if applyToVisible {
             guard panel.isVisible else { return }
         } else {
@@ -134,7 +147,7 @@ final class OverlayController {
             guard !panel.isVisible,
                   NSWorkspace.shared.frontmostApplication?.bundleIdentifier == bundle else { return }
         }
-        model.select(providerID: pid)
+        model.select(providerID: winner)
     }
 
     func hide() {

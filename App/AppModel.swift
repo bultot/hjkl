@@ -16,6 +16,9 @@ final class AppModel {
     /// source of truth, mirrored to `store`; mutating the store alone wouldn't
     /// trigger `@Observable` updates.
     private(set) var hidden: Set<String> = []
+    /// User-ordered context-resolution priority. Observed (same reason as
+    /// `hidden`), always covering every source. Mirrored to `store`.
+    private(set) var contextPriority: [ContextSource] = ContextSource.defaultPriority
     var selectedID: String = ""
     var filter: String = ""
     /// false → typing filters the selected app (the default); true → `/` escalated
@@ -34,6 +37,7 @@ final class AppModel {
     init() {
         store.load()
         hidden = store.hiddenSet()
+        contextPriority = normalizedContextPriority(store.settings.contextPriority)
         applyTheme()
         reload()
     }
@@ -159,6 +163,15 @@ final class AppModel {
 
     func setHoldToPeek(_ on: Bool) {
         store.setHoldToPeek(on); store.save()
+    }
+
+    // MARK: context priority
+
+    /// Swap two entries (drives the up/down controls in Settings).
+    func swapContextPriority(_ i: Int, _ j: Int) {
+        guard contextPriority.indices.contains(i), contextPriority.indices.contains(j) else { return }
+        contextPriority.swapAt(i, j)
+        store.setContextPriority(contextPriority); store.save()
     }
 
     // MARK: hidden shortcuts

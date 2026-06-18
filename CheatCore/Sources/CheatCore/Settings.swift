@@ -26,19 +26,23 @@ public struct HjklSettings: Codable, Sendable, Hashable {
     /// Shortcuts the user dismissed, each `providerID\u{1}keys\u{1}action` (see
     /// `hiddenKey(providerID:shortcut:)`). Kept sorted for stable JSON diffs.
     public var hiddenShortcuts: [String]
+    /// User-ordered context-resolution priority. Normalized on load.
+    public var contextPriority: [ContextSource]
 
     public init(
         apps: [AppEntry] = [],
         themeID: String = "gruvbox-material-dark",
         holdToPeekEnabled: Bool = false,
         toggleEnabled: Bool = true,
-        hiddenShortcuts: [String] = []
+        hiddenShortcuts: [String] = [],
+        contextPriority: [ContextSource] = ContextSource.defaultPriority
     ) {
         self.apps = apps
         self.themeID = themeID
         self.holdToPeekEnabled = holdToPeekEnabled
         self.toggleEnabled = toggleEnabled
         self.hiddenShortcuts = hiddenShortcuts
+        self.contextPriority = contextPriority
     }
 
     public init(from decoder: any Decoder) throws {
@@ -48,6 +52,13 @@ public struct HjklSettings: Codable, Sendable, Hashable {
         holdToPeekEnabled = try c.decodeIfPresent(Bool.self, forKey: .holdToPeekEnabled) ?? false
         toggleEnabled = try c.decodeIfPresent(Bool.self, forKey: .toggleEnabled) ?? true
         hiddenShortcuts = try c.decodeIfPresent([String].self, forKey: .hiddenShortcuts) ?? []
+        // Decode leniently as strings so one unknown/renamed source can't fail
+        // the whole settings load; missing entries are filled in by load().
+        if let raw = try c.decodeIfPresent([String].self, forKey: .contextPriority) {
+            contextPriority = raw.compactMap(ContextSource.init(rawValue:))
+        } else {
+            contextPriority = ContextSource.defaultPriority
+        }
     }
 }
 
@@ -105,12 +116,10 @@ public final class SettingsStore: @unchecked Sendable {
         if let data = try? Data(contentsOf: fileURL),
            let decoded = try? JSONDecoder().decode(HjklSettings.self, from: data) {
             settings = decoded
-            seed(from: .defaults)
-            save()   // persist newly merged-in providers (e.g. a freshly added tool)
-        } else {
-            seed(from: .defaults)
-            save()
         }
+        seed(from: .defaults)
+        setContextPriority(normalizedContextPriority(settings.contextPriority))
+        save()   // persist newly merged-in providers and a healed context priority
     }
 
     /// Write the current settings to disk (pretty-printed, sorted keys).
@@ -163,6 +172,11 @@ public final class SettingsStore: @unchecked Sendable {
     public func setHoldToPeek(_ on: Bool) {
         lock.lock(); defer { lock.unlock() }
         _settings.holdToPeekEnabled = on
+    }
+
+    public func setContextPriority(_ order: [ContextSource]) {
+        lock.lock(); defer { lock.unlock() }
+        _settings.contextPriority = order
     }
 
     public func entry(_ id: String) -> AppEntry? {

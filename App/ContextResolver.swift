@@ -8,20 +8,23 @@ import CheatCore
 struct ContextResolver: Sendable {
     static let cmuxBundleID = "com.cmuxterm.app"
 
-    /// Provider id for the current terminal context, or nil. cmux keeps its
-    /// pane-aware precedence; otherwise a known terminal with an attached tmux
-    /// client resolves to "tmux".
-    func providerID(forFrontmostBundle bundle: String?) -> String? {
+    /// The terminal-context candidate for the frontmost app, tagged with the
+    /// source that produced it, or nil. cmux runs its pane-aware probe; a known
+    /// terminal with an attached tmux client resolves to "tmux". The caller
+    /// weighs this against the frontmost-bundle match per the configured order.
+    func resolve(forFrontmostBundle bundle: String?) -> (source: ContextSource, providerID: String)? {
         if bundle == Self.cmuxBundleID {
-            guard let data = runCmuxTop() else { return nil }
-            return TerminalContext.providerID(fromCmuxTopJSON: data)
+            guard let data = runCmuxTop(),
+                  let id = TerminalContext.providerID(fromCmuxTopJSON: data) else { return nil }
+            return (.cmuxPaneProbe, id)
         }
         // Only shell out for known terminals; the pure function makes the final call.
         guard let bundle, TerminalContext.knownTerminalBundleIDs.contains(bundle) else { return nil }
-        return TerminalContext.terminalProviderID(
+        guard let id = TerminalContext.terminalProviderID(
             frontmostBundleID: bundle,
             tmuxAttached: tmuxClientAttached()
-        )
+        ) else { return nil }
+        return (.attachedTmux, id)
     }
 
     /// Coarse detection: a tmux client is attached *anywhere* if `tmux list-clients`
