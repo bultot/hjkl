@@ -25,7 +25,6 @@ The whole value scales with coverage. Each is an isolated `ShortcutProvider`
 plus tests, no app changes.
 
 - tmux, Zellij, WezTerm (other multiplexers/terminals).
-- Yabai / skhd (alternative window managers).
 - Helix, VS Code, Zed (other editors).
 - fzf, ripgrep, bat and friends (the CLI tools people forget the flags for).
 - Kitty, Alacritty.
