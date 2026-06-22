@@ -37,6 +37,7 @@ public func allKnownProviders() -> [any ShortcutProvider] {
         AeroSpaceProvider(),
         ClaudeCodeProvider(),
         GhosttyProvider(),
+        HeliumProvider(),
         LazygitProvider(),
         NeovimProvider(),
         SkhdProvider(),
