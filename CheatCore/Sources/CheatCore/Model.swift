@@ -15,15 +15,20 @@ public struct Shortcut: Identifiable, Sendable, Hashable, Codable {
     /// Popular/most-used shortcuts, surfaced with emphasis.
     public var essential: Bool
     public var source: ShortcutSource
+    /// Optional longer explanation of how the shortcut/command works, shown on
+    /// demand (a `?` the user hovers in the overlay). nil when there's nothing to add.
+    public var detail: String?
 
     /// Deterministic id (stable across loads → good for SwiftUI diffing and tests).
+    /// `detail` is intentionally excluded: it's annotation, not identity.
     public var id: String { keys + "\u{1}" + action }
 
-    public init(keys: String, action: String, essential: Bool = false, source: ShortcutSource = .builtinDefault) {
+    public init(keys: String, action: String, essential: Bool = false, source: ShortcutSource = .builtinDefault, detail: String? = nil) {
         self.keys = keys
         self.action = action
         self.essential = essential
         self.source = source
+        self.detail = detail
     }
 }
 

@@ -1,0 +1,15 @@
+[user]
+	name = Robin Bultot
+	email = robin@bultot.nl
+[alias]
+	st = status
+	co = checkout
+	br = branch
+	lg = log --oneline --graph --decorate -20
+	unstage = reset HEAD --
+	; a shell alias keeps its bang prefix
+	sync = !git pull --rebase && git push
+[core]
+	editor = nvim
+[push]
+	default = current

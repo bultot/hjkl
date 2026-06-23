@@ -127,6 +127,49 @@ struct SearchGroupCardView: View {
     }
 }
 
+/// The currently hovered shortcut's explanation plus where its `?` sits, bubbled
+/// up so the overlay can draw a single floating bubble on top. AppKit tooltips
+/// (`.help`) don't fire in the borderless non-activating panel, so we render our
+/// own from SwiftUI hover state.
+struct DetailTip {
+    let text: String
+    let anchor: Anchor<CGRect>
+}
+
+struct DetailTipKey: PreferenceKey {
+    static let defaultValue: DetailTip? = nil
+    static func reduce(value: inout DetailTip?, nextValue: () -> DetailTip?) {
+        value = value ?? nextValue()
+    }
+}
+
+/// The floating explanation bubble shown next to a hovered `?`. Opaque base so
+/// it stays readable over the cards behind it.
+struct DetailTipView: View {
+    let text: String
+    let palette: Palette
+
+    var body: some View {
+        Text(text)
+            .font(.callout)
+            .lineSpacing(3)
+            .foregroundStyle(palette.textPrimary)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: 380, alignment: .leading)
+            .padding(.horizontal, 12).padding(.vertical, 10)
+            .background {
+                ZStack {
+                    palette.background
+                    palette.surface.opacity(0.7)
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .strokeBorder(palette.divider, lineWidth: 0.5))
+            }
+            .shadow(color: .black.opacity(0.3), radius: 10, y: 4)
+    }
+}
+
 /// A single key-combo chip.
 struct KeyCapView: View {
     let keys: String
@@ -154,6 +197,7 @@ struct ShortcutRowView: View {
     var onHide: (() -> Void)? = nil
 
     @State private var hovering = false
+    @State private var tipHovering = false
 
     var body: some View {
         HStack(spacing: 12) {
@@ -164,6 +208,15 @@ struct ShortcutRowView: View {
                 .foregroundStyle(palette.textPrimary)
             if shortcut.essential {
                 Image(systemName: "star.fill").font(.system(size: 9)).foregroundStyle(palette.accent)
+            }
+            if let detail = shortcut.detail, !detail.isEmpty {
+                Image(systemName: "questionmark.circle")
+                    .font(.system(size: 10))
+                    .foregroundStyle(tipHovering ? palette.accent : palette.textSecondary)
+                    .onHover { tipHovering = $0 }
+                    .anchorPreference(key: DetailTipKey.self, value: .bounds) {
+                        tipHovering ? DetailTip(text: detail, anchor: $0) : nil
+                    }
             }
             Spacer(minLength: 8)
             if let onHide {

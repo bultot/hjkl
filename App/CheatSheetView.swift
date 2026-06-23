@@ -13,6 +13,9 @@ struct CheatSheetView: View {
     /// When set, the next selectedID/filter change targets this row instead of
     /// resetting to 0 (used when Enter jumps from a search hit into its app).
     @State private var pendingTarget: String? = nil
+    /// Measured size of the detail bubble, so it can be placed above or below the
+    /// hovered `?` without overflowing the card.
+    @State private var tipSize: CGSize = .zero
 
     /// Where keyboard focus lives. The search field holds focus so typing always
     /// works; the panel stays focusable so its key handler keeps receiving events.
@@ -76,6 +79,21 @@ struct CheatSheetView: View {
         .overlay {
             RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous)
                 .strokeBorder(p.divider, lineWidth: 1)
+        }
+        .overlayPreferenceValue(DetailTipKey.self) { tip in
+            GeometryReader { proxy in
+                if let tip {
+                    let r = proxy[tip.anchor]
+                    let belowY = r.maxY + 6
+                    let aboveY = r.minY - 6 - tipSize.height
+                    let y = (belowY + tipSize.height <= proxy.size.height - 8) ? belowY : max(8, aboveY)
+                    let x = min(max(8, r.midX - tipSize.width / 2), max(8, proxy.size.width - tipSize.width - 8))
+                    DetailTipView(text: tip.text, palette: p)
+                        .onGeometryChange(for: CGSize.self) { $0.size } action: { tipSize = $0 }
+                        .offset(x: x, y: y)
+                }
+            }
+            .allowsHitTesting(false)
         }
         // Raycast-style soft drop shadow: a broad ambient layer plus a tighter
         // contact layer for depth. Cast off the clipped rounded card.
